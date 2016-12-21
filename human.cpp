@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
 
 
  	int op = (int) (argv[1][0] - '0');
- 	int pl = (op == 1) ? 2 : 1;
+ 	int pl = (op == 1) ? -1 : 1;
  	eng->SetPlayer(op);
 
  	eng->Update(board);
@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
   size_t n = 12;
   buffer = (char*) malloc(n);
 
-  int turn = (pl == 1) ? 1 : 2;
+  int turn = (pl == 1) ? 1 : -1;
 
  	while(true){ 		
  		if(turn == 1){ //player turn

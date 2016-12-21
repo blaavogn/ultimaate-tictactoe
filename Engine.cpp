@@ -2,6 +2,8 @@
 #include <sys/time.h>
 #include <math.h>
 
+const float mW = 1;
+
 class Engine{
 	char *board;
 	char *mBoard;
@@ -31,13 +33,13 @@ class Engine{
 				for(int x = 0; x < 9; x++){
 					int index = this->CTI(x,y);
 					int oldValue = board[index];
-					int newValue = inBoard[x + y * 9];
+					int pV = inBoard[x + y * 9];
+					int newValue = (pV == 0 ? 0 : (pV == 1) ? 1 : -1);
 					
 					if(oldValue != newValue){
 						board[index] = newValue;
 						if(newValue != pl){
 							placeNext = index % 9;
-							//fprintf( stderr,"Next %d", placeNext);
 						}
 					}
 				}
@@ -62,7 +64,7 @@ class Engine{
 			long int ms = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 			
 			float max = -INFINITY;
-			for(int depth = 1; depth < 12; depth++){ //82-movesMade
+			for(int depth = 2; depth < 12; depth++){ //82-movesMade
 				mNodes = 0;
 				valSmall = 0;
 				valSmallMove = 0;
@@ -84,7 +86,9 @@ class Engine{
 						i += 9;
 						continue; //Skipping macros that is done
 					} 
-	
+					float alpha = -INFINITY;
+					float beta = INFINITY;
+
 					if(board[i] == 0){
 						board[i] = pl;
 						
@@ -93,12 +97,18 @@ class Engine{
 						}		
 						rmBoard[i / 9] = ValidateSmall(board + (i - i % 9));
 
-						float e = MinMax(rmBoard, i, 0, depth, -1);
-						printf("%f\n",e);
+						float e = -1 * MinMax(rmBoard, i, depth, beta * -1, alpha * -1, -1);
 						if(e > max){
 							max = e;
 							bestMove = i;
 						}
+						if(max > alpha){
+							alpha = max;
+						}
+						if(alpha > beta){
+							break;
+						}
+
 						board[i] = 0;
 					}
 				}
@@ -107,12 +117,17 @@ class Engine{
 				long int ms2 = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 				float sec = ((float) (ms2-ms) / 1000.0);
 				fprintf( stderr, "Depth %d: %2.3f mN/sec - %2.3f sec\n", depth, ((float) mNodes / 1000000.0) / sec, sec);
-				if(sec > 1.400){
+				if(time < 5000 && sec > 0.200){
+					break;
+				}if(time < 2500 && sec > 0.120){
+					break;
+				}
+				if(sec > 0.310){
 					break;
 				}
 			}
 
-			fprintf( stderr, "Best move: %d, %3.4f\n", bestMove, max);
+			fprintf( stderr, "Best move: %d, %f\n", bestMove, max);
 
 			int macro = bestMove / 9;
 			int micro = bestMove % 9;
@@ -125,24 +140,22 @@ class Engine{
 		}
 		
 		void SetPlayer(char pl){
-			this->pl = pl;
-		  op = (pl == 1) ? 2 : 1;  
+			this->pl = (pl == 2) ? -1 : 1;
+		  op = (pl == 1) ? -1 : 1;  
 		  fprintf( stderr,"Player is %d\n", pl);
 		}
 
 	private:
-		float MinMax(char* lmBoard, int move, int depth, int limit, int minMax){
+		float MinMax(char* lmBoard, int move, int depth, float alpha, float beta, int minMax){
 			mNodes++;
-
-		 //  fprintf( stderr,"Macro: %d\n", move % 9);
-			// Print();
-
 			char v = this->ValidateBig(lmBoard);
 
 			if(v != 0 && v != -1){
 				return -INFINITY * minMax;
-			}else if(depth == limit || v == -1){
+			}else if(v == -1){
 				return 0.0;
+			}else if(depth == 0){
+				return H(lmBoard) * minMax;
 			}
 
 			int macroIndex = move % 9;
@@ -153,7 +166,7 @@ class Engine{
 				maxLim = minLim + 9;
 			}
 
-			float extreme = -INFINITY * minMax;
+			float extreme = -INFINITY;
 
 			char* rmBoard = mBoardPool + (depth + 1) * 9;
 			
@@ -172,20 +185,18 @@ class Engine{
 					}		
 					rmBoard[i / 9] = ValidateSmall(board + (i - i % 9));
 
-					float e = MinMax(rmBoard, i, depth + 1, limit, minMax * -1);
-					if(minMax == -1){
-						if(e < extreme){
-							extreme = e;
-						}
-					}else{
-						if(e > extreme){
-							extreme = e;
-						}
-					}
-					
+					float e = -1 * MinMax(rmBoard, i, depth - 1, beta * -1, alpha * -1, minMax * -1);
 					board[i] = 0;
-				}else{
-					// fprintf(stderr, "s, %d\n", i);
+
+					if(e > extreme){
+						extreme = e;
+					}
+					if(extreme > alpha){
+						alpha = extreme;
+					}
+					if(alpha >= beta){
+						break;
+					}
 				}
 			}
 
@@ -193,9 +204,42 @@ class Engine{
 		}
 
 		float H(char *lmBoard){
-			return(this->ValidateBig(lmBoard));
+			float h = 0;
+
+			for(int i = 0; i < 9; i++){
+				int t = lmBoard[i];
+
+				int iT = t * -1;
+				int mH = t;
+
+				int pred = 1;
+				int base = t - t % 3;
+				for(int j = 0; j < 3; j++){
+					if(lmBoard[base + j] == iT){
+						pred = 0;
+						break;
+					}
+				}
+				if(pred == 1 && mH == t){
+					mH *= 2;
+				}
+
+				base = t - (t / 3) * 3;
+				for(int j = 0; j < 3; j++){
+					if(lmBoard[base + j * 3] == iT){
+						pred = 0;
+						break;
+					}
+				}
+				if(pred == 1){
+					mH *= 2;
+				}
+				h += mW * mH;
+			}
+
+			return h;
 		}
-		
+
 		char ValidateSmall(char *b){
 			char l, v;
 			
@@ -294,7 +338,12 @@ class Engine{
 				}
 				for(char i = 0; i < 3; i++){
 					for(char j = 0; j < 3; j++){
-						fprintf( stderr, "%d", board[(k / 3) * 18 + k * 3 + i * 9 + j]);
+						char p = board[(k / 3) * 18 + k * 3 + i * 9 + j];
+
+						char c = ' ';
+						if(p == -1){ c = 'O';}
+						if(p == 1){ c = 'X';}
+						fprintf( stderr, "%c", c);
 					}
 					fprintf( stderr, "|");
 				}
