@@ -1,1 +1,1 @@
-g++ -Wall -std=c++11 starter.cpp -o bin/starter
+g++ -Wall -std=c++1y -O3 starter.cpp -o bin/starter

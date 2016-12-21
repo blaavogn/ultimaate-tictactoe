@@ -123,7 +123,7 @@ private:
             if(type == "field"){
                 engine->Update(&_field[0]);
             }else{
-                engine->Update(&_macroboard[0]);
+             //   engine->Update(&_macroboard[0]);
             }
         }
         else {
