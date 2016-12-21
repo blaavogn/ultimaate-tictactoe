@@ -9,6 +9,7 @@ class Engine{
 	char *mBoard;
 	char *mBoardPool;
 	char *lTmp;
+	char *hTmp;
 	int placeNext;
 	char pl, op;
 	int lMove, mNodes;
@@ -21,6 +22,7 @@ class Engine{
 			board     	= (char*) malloc(sizeof(char) * 81);
 			mBoardPool 	= (char*) malloc(sizeof(char) * 9 * 81);
 			lTmp 		  	= (char*) malloc(sizeof(char) * 9);
+			hTmp 		  	= (char*) malloc(sizeof(char) * 9);
 			for(int i = 0; i < 9 * 81; i++){
 				mBoardPool[i] = 0;
 			}
@@ -62,18 +64,22 @@ class Engine{
 
 			gettimeofday(&tp, NULL);
 			long int ms = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+			float sec = 0.0;
+			int depth;
 			
-			float max = -INFINITY;
-			for(int depth = 2; depth < 12; depth++){ //82-movesMade
+			float extreme = -INFINITY;
+
+			for(depth = 2; depth < 82-movesMade; depth++){ //
 				mNodes = 0;
 				valSmall = 0;
 				valSmallMove = 0;
 
-				max = -INFINITY;
+				extreme = -INFINITY;
+				float alpha = -INFINITY;
+				float beta = INFINITY;
 
 				char* lmBoard = mBoardPool;
 				char* rmBoard = mBoardPool + 9;
-
 
 				for(int j = 0; j < 9; j++){
 					int v = ValidateSmall(board + j * 9);
@@ -86,8 +92,6 @@ class Engine{
 						i += 9;
 						continue; //Skipping macros that is done
 					} 
-					float alpha = -INFINITY;
-					float beta = INFINITY;
 
 					if(board[i] == 0){
 						board[i] = pl;
@@ -98,25 +102,23 @@ class Engine{
 						rmBoard[i / 9] = ValidateSmall(board + (i - i % 9));
 
 						float e = -1 * MinMax(rmBoard, i, depth, beta * -1, alpha * -1, -1);
-						if(e > max){
-							max = e;
+						board[i] = 0;
+						if(e >= extreme){
+							extreme = e;
 							bestMove = i;
 						}
-						if(max > alpha){
-							alpha = max;
+						if(extreme > alpha){
+							alpha = extreme;
 						}
-						if(alpha > beta){
+						if(alpha >= beta){
 							break;
 						}
-
-						board[i] = 0;
 					}
 				}
 
 				gettimeofday(&tp, NULL);
 				long int ms2 = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-				float sec = ((float) (ms2-ms) / 1000.0);
-				fprintf( stderr, "Depth %d: %2.3f mN/sec - %2.3f sec\n", depth, ((float) mNodes / 1000000.0) / sec, sec);
+				sec = ((float) (ms2-ms) / 1000.0);
 				if(time < 5000 && sec > 0.200){
 					break;
 				}if(time < 2500 && sec > 0.120){
@@ -127,7 +129,8 @@ class Engine{
 				}
 			}
 
-			fprintf( stderr, "Best move: %d, %f\n", bestMove, max);
+			fprintf( stderr, "Depth %d: %2.3f mN/sec - %2.3f sec\n", depth, ((float) mNodes / 1000000.0) / sec, sec);
+			fprintf( stderr, "Best move: %d, %f\n", bestMove, extreme);
 
 			int macro = bestMove / 9;
 			int micro = bestMove % 9;
@@ -150,9 +153,9 @@ class Engine{
 			mNodes++;
 			char v = this->ValidateBig(lmBoard);
 
-			if(v != 0 && v != -1){
-				return -INFINITY * minMax;
-			}else if(v == -1){
+			if(v != 0 && v != -2){
+				return -INFINITY;
+			}else if(v == -2){
 				return 0.0;
 			}else if(depth == 0){
 				return H(lmBoard) * minMax;
@@ -178,7 +181,6 @@ class Engine{
 
 				if(board[i] == 0){
 					board[i] = (minMax == 1) ? pl : op;
-					// fprintf(stderr, "p, %d\n", i);
 					
 					for(int j = 0; j < 9; j++){
 						rmBoard[j] = lmBoard[j];
@@ -204,39 +206,97 @@ class Engine{
 		}
 
 		float H(char *lmBoard){
-			float h = 0;
-
 			for(int i = 0; i < 9; i++){
+				lTmp[i] = 0; 
+				hTmp[i] = 0; 
+
 				int t = lmBoard[i];
+				if(t == -2){
+					continue;
+				}
 
 				int iT = t * -1;
-				int mH = t;
 
-				int pred = 1;
+				int pred = 3;
 				int base = t - t % 3;
 				for(int j = 0; j < 3; j++){
-					if(lmBoard[base + j] == iT){
+					int v = lmBoard[base + j];
+					if(v == iT){
 						pred = 0;
 						break;
+					}else if(v == 0){
+						pred--;
 					}
 				}
-				if(pred == 1 && mH == t){
-					mH *= 2;
+
+				if(pred > lTmp[i]){
+					lTmp[i] = pred;
 				}
 
+				pred = 3;
 				base = t - (t / 3) * 3;
 				for(int j = 0; j < 3; j++){
-					if(lmBoard[base + j * 3] == iT){
+					int v = lmBoard[base + j * 3];
+					if(v == iT){
 						pred = 0;
 						break;
+					}else if(v == 0){
+						pred--;
 					}
 				}
-				if(pred == 1){
-					mH *= 2;
+
+				if(pred > lTmp[i]){
+					lTmp[i] = pred;
 				}
-				h += mW * mH;
+
+				if(t == 0 || t == 4 || t == 8){
+					pred = 3;
+					for(int j = 0; j < 3; j++){
+						int v = lmBoard[j * 4];
+						if(v == iT){
+							pred = 0;
+							break;
+						}else if(v == 0){
+							pred--;
+						}
+					}	
+					if(pred > lTmp[i]){
+						lTmp[i] = pred;
+					}
+				}
+
+				if(t == 2 || t == 4 || t == 6){
+					pred = 3;
+					for(int j = 0; j < 3; j++){
+						int v = lmBoard[2 + j * 4];
+						if(v == iT){
+							pred = 0;
+							break;
+						}else if(v == 0){
+							pred--;
+						}
+					}	
+					if(pred > lTmp[i]){
+						lTmp[i] = pred;
+					}
+				}
+				lTmp[i] *= t;
 			}
 
+			for(int i = 0; i < 9; i++){
+				if(lmBoard[i] == 0){
+					for(int j = 0; j < 9; j++){
+						if(board[i * 9 + j] == 0){
+							hTmp[j] += 1;
+						}
+					}	
+				}
+			}
+
+			float h = 0.0;
+			for(int i = 0; i < 9; i++){
+				h += hTmp[i] * lTmp[i];
+			}
 			return h;
 		}
 
@@ -309,13 +369,12 @@ class Engine{
 				}
 			}
 
-			return -1;
+			return -2;
 		}
 
 		char ValidateBig(char *mB){
 			return this->ValidateSmall(mB);
 		}
-
 
 		int CTI(int x, int y){
 			int macroX = x / 3; 
