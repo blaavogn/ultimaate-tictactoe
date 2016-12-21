@@ -13,7 +13,6 @@ int main(int argc, char *argv[]) {
  		board[i] = 0;
  	}
 
-
  	int op = (int) (argv[1][0] - '0');
  	int pl = (op == 1) ? -1 : 1;
  	eng->SetPlayer(op);
@@ -42,7 +41,7 @@ int main(int argc, char *argv[]) {
  			board[move.first + move.second * 9] = op;
  			eng->Update(board);
  		}
- 		turn = (turn == 1) ? 2 : 1;
+ 		turn = (turn == 1) ? -1 : 1;
  	}
 
   return 0;
