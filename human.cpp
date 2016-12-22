@@ -7,16 +7,16 @@ void place(int *b, int x, int y, int v){
 
 int main(int argc, char *argv[]) {
   Engine* eng = new Engine();
- 	
- 	int *board = (int*) malloc(sizeof(int) * 81);
+ 	int board[81] = {0,2,0,0,0,0,0,1,2,2,0,0,2,0,0,2,0,1,1,2,2,1,1,1,1,1,2,0,0,0,0,2,0,0,2,0,2,0,0,1,0,1,2,0,2,1,1,1,2,1,1,2,1,1,0,0,0,0,0,0,0,0,0,1,1,1,2,2,2,2,2,2,2,1,1,2,1,1,2,2,1};
  	for(int i = 0; i < 81; i++){
  		board[i] = 0;
  	}
-
+ 	board[68] = 0;
  	int op = (int) (argv[1][0] - '0');
  	int pl = (op == 1) ? -1 : 1;
  	eng->SetPlayer(op);
-
+ 	eng->Update(board);
+ 	// board[68] = 2;
  	eng->Update(board);
 
 	char *buffer;
@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
  			board[move.first + move.second * 9] = op;
  			eng->Update(board);
  		}
- 		turn = (turn == 1) ? -1 : 1;
+ 		turn = (turn == 1) ? 2 : 1;
  	}
 
   return 0;
