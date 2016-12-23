@@ -1,15 +1,3 @@
-static const unsigned int hash_empt[]  = {
-  0xfd3b5abb, 0x656dc346, 0xf66174ed, 0x8143a31f, 0x2c4ab5db, 0x973c896c, 0x18e5ce61, 0xab0e1423, 0x5453d950,
-  0xceb0032f, 0xbb83cd34, 0x11bf5e9e, 0x10904dc2, 0xb07df29a, 0x009ea864, 0x9db51f7a, 0x62025bb5, 0xee87108a,
-  0x98932219, 0x3800caaa, 0xbf719c63, 0x6ab4406c, 0x26ae8dce, 0xd7604d39, 0x34300234, 0x584225a1, 0xe9931b44,
-  0xdaa694ce, 0x207f26d2, 0x23e92fce, 0xae7669ae, 0x9874fb4c, 0x95eee8e9, 0xaaf9b218, 0x854e06a7, 0x4b054f60,
-  0x701f1019, 0x9d46c977, 0xf4ebf302, 0x7d66a095, 0x87f60961, 0x7d3eb908, 0x7e4f7b31, 0x4a3f406b, 0x6732ea60,
-  0x93a1e02c, 0x923e8711, 0x225cee29, 0x63711214, 0xa1056334, 0x7ad87832, 0xc5ff9b0c, 0x23d60698, 0x3d066419,
-  0xb6dfa908, 0xb1290216, 0x8e9abcf1, 0xd5d70e2f, 0x894ea554, 0xdb4a8713, 0xedfd2f21, 0x4cc03566, 0x63f8f8a3,
-  0x97af4a5f, 0xba67c107, 0x9573fc1f, 0x0b5d3b8c, 0x73b336b5, 0xf6972c82, 0x730db000, 0xba538d98, 0x864bf4fb,
-  0x63f116c5, 0x1449632d, 0xf57c0323, 0x3b1a7051, 0x1646c3fa, 0x4d35570f, 0x5c1ec6e0, 0xf0f935dc, 0xc336552f
-};
-
 static const unsigned int hash_pl[]  = {
   0x0cf46381, 0x03a1a0ac, 0x0958f091, 0x54aa234a, 0x6d9996cb, 0x0eaf1055, 0x99369982, 0x73a4a478, 0x367a4a1e,
   0x17aa8d1c, 0x0f3882ca, 0xb3ed1eff, 0x0147e7d6, 0xb710a367, 0x00e789c2, 0xc741cbe0, 0x7446ee5a, 0x02e55e17,
@@ -34,31 +22,45 @@ static const unsigned int hash_op[] = {
   0xcf844ec0, 0x39d8cfdc, 0x99b5f142, 0xb5d328f5, 0x2ee0c247, 0x4f5a254c, 0xe1e1dd47, 0x9d47db69, 0xdcdc07a0
 };
 
-struct MyBoard{
-	char* board;
-	char move;
-	char depth;
-	unsigned int hash;
+class MyBoard{
+	public: 
+		char* board;
+	  char move;
+		char depth;
+		unsigned int hash;
+	
+	MyBoard(){
+		move = 0;
+		depth = 0;
+		hash = 0;
+	}
+
+	~MyBoard(){
+		delete(board);
+	}  
 };
 
-bool operator==(const MyBoard& l,const MyBoard& r) {
-	if(l.move != r.move){
-		return false;
+struct MyEqual {
+	bool operator()( MyBoard* const &l,MyBoard* const &r) const {
+		if(l->move != r->move){
+			return false;
+		}
+		if(l->depth != r->depth){
+			return false;
+		}
+	  for(int i = 0; i < 81; i++){
+	  	if(l->board[i] != r->board[i])
+	  		return false;
+	  }
+	  return true;
 	}
-	if(l.depth != r.depth){
-		return false;
-	}
-  for(int i = 0; i < 81; i++){
-  	if(l.board[i] != r.board[i])
-  		return false;
-  }
-  return true;
-}
+};
+
 
 struct MyHash
 {
-    std::size_t operator()(MyBoard const& s) const 
+    std::size_t operator()(MyBoard* const& s) const 
     {	
-    	return s.hash;
+    	return s->hash;
     }
 };

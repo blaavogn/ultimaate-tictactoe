@@ -1,8 +1,9 @@
 #include <iostream>
 #include <sys/time.h>
 #include <math.h>
-// #include <unordered_map>
-// #include "MyBoard.cpp"
+#include "MyBoard.cpp"
+#include <unordered_map>
+#include <string.h>
 
 class Engine{
 	char *board;
@@ -18,7 +19,11 @@ class Engine{
 	int lMove, mNodes;
 	int movesMade;
 	const float mynan = 0.0/0.0;
-	// std::unordered_map <int, int> m;
+	int hash = 0;
+	int itDepth = 0;
+
+	MyBoard* hashKey;
+ 	std::unordered_map <MyBoard*, char, MyHash, MyEqual> *trans;
 
 	public:
 		Engine(){
@@ -29,12 +34,11 @@ class Engine{
 			opTmp 		  = (char*) malloc(sizeof(char) * 9);
 			hTmp 		  	= (char*) malloc(sizeof(char) * 9);
 			pBoard 		  = (char*) malloc(sizeof(char) * 9);
-
-			for(int i = 0; i < 9 * 81; i++){
-				mBoardPool[i] = 0;
-			}
+			hashKey 		= new MyBoard();
+			hashKey->board = board;
 			placeNext  	= -1;
 			movesMade   = 0;
+			trans = new std::unordered_map <MyBoard*, char, MyHash, MyEqual>(1,MyHash(),MyEqual());
 		}
 	
 		void Update(int *inBoard){
@@ -50,13 +54,16 @@ class Engine{
 					}
 					if(oldValue != newValue){
 						board[index] = newValue;
+						
 						if(newValue != pl){
 							placeNext = CTI(x,y);
+							hash = hash ^ hash_op[index];
+						}else{
+							hash = hash ^ hash_pl[index]; 
 						}
 					}
 				}
 			}	
-			this->Print();
 		}
 
 		std::pair<int, int> Move(int time){
@@ -70,7 +77,12 @@ class Engine{
 			
 			float extreme = -INFINITY;
 
+			hashKey->move = placeNext;
+			hashKey->hash = hash;
+			auto transPos = trans->find(hashKey);
+
 			for(depth = 2; depth < 25; depth++){
+				itDepth = depth;
 				mNodes = 0;
 
 				float alpha = -INFINITY;
@@ -85,8 +97,13 @@ class Engine{
 					lmBoard[j] = v;
 				}							
 
+				char prefMove = -1;
+				if(transPos != trans->end()) {
+					prefMove = transPos->second;
+				}
+
 				int* moves = &movePool[83 * (80 - depth)];
-				getMoves(moves, placeNext, lmBoard, 1);		
+				getMoves(moves, placeNext, lmBoard, prefMove);		
 
 				int c = 0;
 				int i = 0;
@@ -99,14 +116,15 @@ class Engine{
 					if(bestMove == -1){
 						bestMove = i;
 					}
-					board[i] = pl;
 					
-					for(int j = 0; j < 9; j++){
-						rmBoard[j] = lmBoard[j];
-					}		
-					rmBoard[i / 9] = ValidateSmall(board + (i - i % 9));
+					memcpy(rmBoard, lmBoard, 9 * sizeof(char));	
 
+					int hashChange = hash_pl[i];
+					board[i] = pl;
+					hash = hash ^ hashChange;
+					rmBoard[i / 9] = ValidateSmall(board + (i - i % 9));
 					float e = Min(rmBoard, i, depth - 1, alpha, beta);
+					hash = hash ^ hashChange;
 					board[i] = 0;
 
 					if(isnan(e) && bestMove == -1){
@@ -136,6 +154,21 @@ class Engine{
 					break;
 				}
 			}
+			
+			int absDepth = movesMade + itDepth - depth;
+			if(itDepth - depth < 5){
+				if(transPos != trans->end()){
+					transPos->second = bestMove;
+					transPos->first->depth = absDepth;
+				}else{
+					MyBoard* b = new MyBoard();
+					memcpy(b->board, board, 81 * sizeof(char));
+					b->depth = absDepth;
+					b->move = placeNext % 9;
+					b->hash = hash ^ hash_pl[bestMove];
+					trans->insert(std::make_pair(b, bestMove));
+				}
+			}
 
 			fprintf( stderr, "%d: Depth %d: %2.3f mN/sec - %2.3f sec\n", movesMade, depth, ((float) mNodes / 1000000.0) / sec, sec);
 			fprintf( stderr, "Best move: %d, %f\n", bestMove, extreme);
@@ -160,6 +193,13 @@ class Engine{
 		float Min(char* lmBoard, int move, int depth, float alpha, float beta){
 			mNodes++;
 			char v = this->ValidateSmall(lmBoard);
+			hashKey->move = move;
+			hashKey->hash = hash;
+			auto transPos = trans->find(hashKey);
+			char prefMove = -1;
+			if(transPos != trans->end()) {
+				prefMove = transPos->second;
+			}
 
 			if(v != 0 && v != -2){
 				return INFINITY;
@@ -174,90 +214,126 @@ class Engine{
 			char* rmBoard = mBoardPool + (depth + 1) * 9 * sizeof(char);				
 
 			int* moves = &movePool[83 * (80 - depth)];
-			getMoves(moves, move, lmBoard, 1);
+			getMoves(moves, move, lmBoard, prefMove);
 
-			int c = 0;
-			int i = 0;
-			while(true){
+			int chosenMove = 0;
+			for(int i = 0, c = 0; ;){
 				i = moves[c++]; 
 				if(i == 999){
 					break;
 				} 
 				
-				for(int j = 0; j < 9; j++){
-					rmBoard[j] = lmBoard[j];
-				}		
+				memcpy(rmBoard, lmBoard, 9 * sizeof(char));				
 
+				int hashChange = hash_op[i];
 				board[i] = op;
 				rmBoard[i / 9] = ValidateSmall(board + (i - i % 9));
+				hash = hash ^ hashChange;
 				float e = Max(rmBoard, i, depth - 1, alpha, beta);
+				hash = hash ^ hashChange;
 				board[i] = 0;
 
 				if(e <= extreme){
 					extreme = e;
+					chosenMove = i;
 				}
 				if(e <= alpha){
-					return mynan;
+					extreme = mynan;
+					chosenMove = i;
+					break;
 				}
 				if(e < beta){
 					beta = e;
 				}
-
 			}
+
+			int absDepth = movesMade + itDepth - depth;
+			if(itDepth - depth < 5){
+				if(transPos != trans->end()){
+					transPos->second = chosenMove;
+					transPos->first->depth = absDepth;
+				}else{
+					MyBoard* b = new MyBoard();
+					memcpy(b->board, board, 81 * sizeof(char));
+					b->depth = absDepth;
+					b->move = move % 9;
+					b->hash = hash ^ hash_op[chosenMove];
+					trans->insert(std::make_pair(b, chosenMove));
+				}
+			}
+
 			return extreme;
 		} 
 
 		float Max(char* lmBoard, int move, int depth, float alpha, float beta){
 			mNodes++;
 			char v = this->ValidateSmall(lmBoard);
-
-			if(v != 0 && v != -2){
-				return -INFINITY;
-			}else if(v == -2){
-				return 0.0;
-			}else if(depth == 0){
-				return H(lmBoard);
+			hashKey->move = move;
+			auto transPos = trans->find(hashKey);
+			char prefMove = -1;
+			if(transPos != trans->end()) {
+				prefMove = transPos->second;
 			}
 
-			float extreme = -INFINITY;
+			if(v != 0 && v != -2){ return -INFINITY;}
+			else if(v == -2){ return 0.0;}
+			else if(depth == 0){ return H(lmBoard);}
 
 			char* rmBoard = mBoardPool + (depth + 1) * 9 * sizeof(char);				
 
 			int* moves = &movePool[83 * (80 - depth)];
-			getMoves(moves, move, lmBoard, 1);
+			getMoves(moves, move, lmBoard, prefMove);
 
-			int c = 0;
-			int i = 0;
-			while(true){
+			float extreme = -INFINITY;
+			int chosenMove = 0;
+			for(int i = 0, c = 0; ;){
 				i = moves[c++]; 
-				if(i == 999){
-					break;
-				} 
+				
+				if(i == 999){break;} 
+				
+				memcpy(rmBoard, lmBoard, 9 * sizeof(char));				
 
-				for(int j = 0; j < 9; j++){
-					rmBoard[j] = lmBoard[j];
-				}		
-
+				int hashChange = hash_pl[i];
 				board[i] = pl;
 				rmBoard[i / 9] = ValidateSmall(board + (i - i % 9));
+				hash = hash ^ hashChange;
 				float e = Min(rmBoard, i, depth - 1, alpha, beta);
+				hash = hash ^ hashChange;
 				board[i] = 0;
 
 				if(e >= extreme){
 					extreme = e;
+					chosenMove = i;
 				}
 				if(e >= beta){
-					return mynan;
+					extreme = mynan;
+					chosenMove = i;
+					break;
 				}
 				if(e > alpha){
 					alpha = e;	
+				}
+			}
+			
+			int absDepth = movesMade + itDepth - depth;
+			if(itDepth - depth < 5){
+				if(transPos != trans->end()){
+					transPos->second = chosenMove;
+					transPos->first->depth = absDepth;
+				}else{
+					MyBoard* b = new MyBoard();
+					memcpy(b->board, board, 81 * sizeof(char));
+					b->depth = absDepth;
+					b->move = move % 9;
+					b->hash = hash ^ hash_pl[chosenMove];
+					trans->insert(std::make_pair(b, chosenMove));
 				}
 			}
 
 			return extreme;
 		} 
 
-		void getMoves(int* moves, int move, char* lmBoard, int h = 0){
+		void getMoves(int* moves, int move, char* lmBoard, int prefMove){
 			int macroIndex = move % 9;
 			int minLim = 0;
 			int maxLim = 81;
@@ -267,7 +343,7 @@ class Engine{
 				maxLim = minLim + 9;
 			}
 			
-			int lCount = 0, hCount = 81;
+			int lCount = 0, hCount = 81, prefIndex = -1;
 			
 			for(int i = minLim; i < maxLim; i++){	
 				if(lmBoard[i / 9] != 0){
@@ -278,6 +354,9 @@ class Engine{
 					if(lmBoard[i] == 0){
 						moves[lCount] = i;
 						lCount += 1;
+						if(i == prefMove){
+							prefIndex = i;				
+						}
 					}else{
 						moves[hCount] = i;
 						hCount += 1;
@@ -287,8 +366,17 @@ class Engine{
 			
 			while(hCount > 81){
 				hCount -= 1;
-				moves[lCount] = moves[hCount];
+				int i = moves[hCount];
+				moves[lCount] = i;
+				if(i == prefMove){
+					prefIndex = i;				
+				}
 				lCount += 1;
+			}
+			if(prefIndex != -1){
+				int t = moves[0];
+				moves[0] = moves[prefIndex];
+				moves[prefIndex] = t;
 			}
 			moves[lCount] = 999;					
 		}
@@ -319,8 +407,8 @@ class Engine{
 
 			float h = 0.0;
 			for(int i = 0; i < 9; i++){
-				h += hTmp[i] * plTmp[i];
-				h += hTmp[i] * opTmp[i];
+				h += hTmp[i] * plTmp[i] + plTmp[i] * 4;
+				h += hTmp[i] * opTmp[i] + opTmp[i] * 4;
 			}
 			return h * pl;
 		}
