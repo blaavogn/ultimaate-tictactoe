@@ -1,11 +1,13 @@
 #include <iostream>
 #include <sys/time.h>
 #include <math.h>
-#include "MyBoard.cpp"
-#include <unordered_map>
 #include <string.h>
+#include "HashBoard.cpp"
+#include "TranspositionTable.cpp"
 
 class Engine{
+	const float mynan = 0.0/0.0;
+
 	char *board;
 	char *mBoard;
 	char *pBoard;
@@ -14,16 +16,18 @@ class Engine{
 	char *plTmp;
 	char *opTmp;
 	char *hTmp;
-	int placeNext;
+	int gl_PrevMove;
 	char pl, op;
 	int lMove, mNodes;
 	int movesMade;
-	const float mynan = 0.0/0.0;
 	int hash = 0;
 	int itDepth = 0;
+	int transHitFull = 0;
+	int transHit = 0;
+	int hashDepth = 12;
 
-	MyBoard* hashKey;
- 	std::unordered_map <MyBoard*, char, MyHash, MyEqual> *trans;
+	TranspositionTable* transTable;
+	HashBoard* hashKey;
 
 	public:
 		Engine(){
@@ -34,11 +38,12 @@ class Engine{
 			opTmp 		  = (char*) malloc(sizeof(char) * 9);
 			hTmp 		  	= (char*) malloc(sizeof(char) * 9);
 			pBoard 		  = (char*) malloc(sizeof(char) * 9);
-			hashKey 		= new MyBoard();
+			transTable  = new TranspositionTable();
+			hashKey 		= new HashBoard();
 			hashKey->board = board;
-			placeNext  	= -1;
+			gl_PrevMove  	= -1;
 			movesMade   = 0;
-			trans = new std::unordered_map <MyBoard*, char, MyHash, MyEqual>(1,MyHash(),MyEqual());
+			
 		}
 	
 		void Update(int *inBoard){
@@ -56,7 +61,7 @@ class Engine{
 						board[index] = newValue;
 						
 						if(newValue != pl){
-							placeNext = CTI(x,y);
+							gl_PrevMove = CTI(x,y);
 							hash = hash ^ hash_op[index];
 						}else{
 							hash = hash ^ hash_pl[index]; 
@@ -64,141 +69,89 @@ class Engine{
 					}
 				}
 			}	
+			// Print();
 		}
 
 		std::pair<int, int> Move(int time){
 			struct timeval tp;
-			int bestMove = -1;
-
 			gettimeofday(&tp, NULL);
 			long int ms = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 			float sec = 0.0;
-			int depth;
 			
-			float extreme = -INFINITY;
+			transHitFull = 0;
+			transHit = 0;
+			mNodes = 0;
 
-			hashKey->move = placeNext;
-			hashKey->hash = hash;
-			auto transPos = trans->find(hashKey);
+			char* lmBoard = mBoardPool;
+ 			
+			for(int j = 0; j < 9; j++){
+				int v = ValidateSmall(board + j * 9);
+				lmBoard[j] = v;
+			}	
 
-			for(depth = 2; depth < 25; depth++){
+			int depth;
+			for(depth = 2; depth < 35; depth++){
 				itDepth = depth;
-				mNodes = 0;
-
-				float alpha = -INFINITY;
-				float beta = INFINITY;
-
-				extreme = -INFINITY;
-				char* lmBoard = mBoardPool;
-				char* rmBoard = mBoardPool + 9 * sizeof(char);
-
-				for(int j = 0; j < 9; j++){
-					int v = ValidateSmall(board + j * 9);
-					lmBoard[j] = v;
-				}							
-
-				char prefMove = -1;
-				if(transPos != trans->end()) {
-					prefMove = transPos->second;
-				}
-
-				int* moves = &movePool[83 * (80 - depth)];
-				getMoves(moves, placeNext, lmBoard, prefMove);		
-
-				int c = 0;
-				int i = 0;
-				while(true){
-					i = moves[c++];
-					if(i == 999){
-						break;
-					} 
-						
-					if(bestMove == -1){
-						bestMove = i;
-					}
-					
-					memcpy(rmBoard, lmBoard, 9 * sizeof(char));	
-
-					int hashChange = hash_pl[i];
-					board[i] = pl;
-					hash = hash ^ hashChange;
-					rmBoard[i / 9] = ValidateSmall(board + (i - i % 9));
-					float e = Min(rmBoard, i, depth - 1, alpha, beta);
-					hash = hash ^ hashChange;
-					board[i] = 0;
-
-					if(isnan(e) && bestMove == -1){
-						bestMove = i;
-					}
-					if(e >= extreme){
-						extreme = e;
-						bestMove = i;
-					}
-					if(extreme >= beta){
-						break;
-					}
-					if(extreme > alpha){
-						alpha = extreme;
-					}
-				}
+				
+				Max(lmBoard, gl_PrevMove, depth, -INFINITY, INFINITY);
 				
 				gettimeofday(&tp, NULL);
 				long int ms2 = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 				sec = ((float) (ms2-ms) / 1000.0);
-				if(time < 5000 && sec > 0.200){
+				if(time < 5000 && sec > 0.200)
 					break;
-				}if(time < 2500 && sec > 0.110){
+				if(time < 2500 && sec > 0.110)
 					break;
-				}
-				if(sec > 0.350){
+				if(sec > 0.350)
 					break;
-				}
 			}
-			
-			int absDepth = movesMade + itDepth - depth;
-			if(itDepth - depth < 5){
-				if(transPos != trans->end()){
-					transPos->second = bestMove;
-					transPos->first->depth = absDepth;
-				}else{
-					MyBoard* b = new MyBoard();
-					memcpy(b->board, board, 81 * sizeof(char));
-					b->depth = absDepth;
-					b->move = placeNext % 9;
-					b->hash = hash ^ hash_pl[bestMove];
-					trans->insert(std::make_pair(b, bestMove));
-				}
+	
+			hashKey->prevMove = gl_PrevMove % 9;
+			hashKey->hash = hash;
+			auto transPos = transTable->find(hashKey);
+			int chosenMove = -1;
+			if(transPos != transTable->end()){
+				chosenMove = transPos->second;
+			}else{
+				fprintf(stderr, "Error, chosen move not found in transposition table, we are fucked\n");
 			}
 
 			fprintf( stderr, "%d: Depth %d: %2.3f mN/sec - %2.3f sec\n", movesMade, depth, ((float) mNodes / 1000000.0) / sec, sec);
-			fprintf( stderr, "Best move: %d, %f\n", bestMove, extreme);
+			fprintf( stderr, "TransHit: %d Full: %d, transsize: %ld \n", transHit, transHitFull, transTable->size());
+			fprintf( stderr, "Best move: %d, %f\n", chosenMove, transPos->first->eval);
 
-			int macro = bestMove / 9;
-			int micro = bestMove % 9;
+			int macro = chosenMove / 9;
+			int micro = chosenMove % 9;
 			int x = (macro % 3) * 3 + micro % 3;
 			int y = (macro / 3) * 3 + micro / 3;
 
 			fprintf( stderr, "%d, %d\n", x,y);
-			//CONVERT MOVE BACK
+			transTable->cleanUp(movesMade + 2); //Should be done on pondering.
 			return std::make_pair(x, y);	
 		}
 		
 		void SetPlayer(char pl){
 			this->pl = (pl == 2) ? -1 : 1;
 		  op = (pl == 1) ? -1 : 1;  
-		  fprintf( stderr,"Player is %d\n", pl);
 		}
 
 	private:
-		float Min(char* lmBoard, int move, int depth, float alpha, float beta){
+		float Min(char* lmBoard, int prevMove, int depth, float alpha, float beta){
 			mNodes++;
 			char v = this->ValidateSmall(lmBoard);
-			hashKey->move = move;
+
+			hashKey->prevMove = prevMove % 9;
 			hashKey->hash = hash;
-			auto transPos = trans->find(hashKey);
+			
+			auto transPos = transTable->find(hashKey);
 			char prefMove = -1;
-			if(transPos != trans->end()) {
+			if(transPos != transTable->end()) {
 				prefMove = transPos->second;
+				transHit++;
+				if(transPos->first->itDepth == itDepth && !isnan(transPos->first->eval)){
+					transHitFull++;
+					return transPos->first->eval;
+				}
 			}
 
 			if(v != 0 && v != -2){
@@ -214,11 +167,14 @@ class Engine{
 			char* rmBoard = mBoardPool + (depth + 1) * 9 * sizeof(char);				
 
 			int* moves = &movePool[83 * (80 - depth)];
-			getMoves(moves, move, lmBoard, prefMove);
+			getMoves(moves, prevMove, lmBoard, prefMove);
 
 			int chosenMove = 0;
 			for(int i = 0, c = 0; ;){
 				i = moves[c++]; 
+				if(i == -1){
+					fprintf(stderr, "ERROR\n");
+				}
 				if(i == 999){
 					break;
 				} 
@@ -247,32 +203,32 @@ class Engine{
 				}
 			}
 
-			int absDepth = movesMade + itDepth - depth;
-			if(itDepth - depth < 5){
-				if(transPos != trans->end()){
-					transPos->second = chosenMove;
-					transPos->first->depth = absDepth;
+			if(itDepth - depth < hashDepth){
+				if(transPos != transTable->end()){
+					TranspositionTable::UpdateTransPos(transPos, chosenMove, extreme, itDepth);
 				}else{
-					MyBoard* b = new MyBoard();
-					memcpy(b->board, board, 81 * sizeof(char));
-					b->depth = absDepth;
-					b->move = move % 9;
-					b->hash = hash ^ hash_op[chosenMove];
-					trans->insert(std::make_pair(b, chosenMove));
+					transTable->insert(chosenMove, board, hash, extreme, prevMove, itDepth, movesMade + (itDepth - depth));
 				}
 			}
 
 			return extreme;
 		} 
 
-		float Max(char* lmBoard, int move, int depth, float alpha, float beta){
+		float Max(char* lmBoard, int prevMove, int depth, float alpha, float beta){
 			mNodes++;
 			char v = this->ValidateSmall(lmBoard);
-			hashKey->move = move;
-			auto transPos = trans->find(hashKey);
+			hashKey->prevMove = prevMove % 9;
+			hashKey->hash = hash;
+			auto transPos = transTable->find(hashKey);
+			
 			char prefMove = -1;
-			if(transPos != trans->end()) {
+			if(transPos != transTable->end()) {
 				prefMove = transPos->second;
+				transHit++;
+				if(transPos->first->itDepth == itDepth && !isnan(transPos->first->eval)){
+					transHitFull++;
+					return transPos->first->eval;
+				}
 			}
 
 			if(v != 0 && v != -2){ return -INFINITY;}
@@ -282,13 +238,15 @@ class Engine{
 			char* rmBoard = mBoardPool + (depth + 1) * 9 * sizeof(char);				
 
 			int* moves = &movePool[83 * (80 - depth)];
-			getMoves(moves, move, lmBoard, prefMove);
+			getMoves(moves, prevMove, lmBoard, prefMove);
 
 			float extreme = -INFINITY;
 			int chosenMove = 0;
 			for(int i = 0, c = 0; ;){
 				i = moves[c++]; 
-				
+				if(i == -1){
+					fprintf(stderr, "ERROR\n");
+				}
 				if(i == 999){break;} 
 				
 				memcpy(rmBoard, lmBoard, 9 * sizeof(char));				
@@ -315,30 +273,23 @@ class Engine{
 				}
 			}
 			
-			int absDepth = movesMade + itDepth - depth;
-			if(itDepth - depth < 5){
-				if(transPos != trans->end()){
-					transPos->second = chosenMove;
-					transPos->first->depth = absDepth;
+			if(itDepth - depth < hashDepth){
+				if(transPos != transTable->end()){
+					TranspositionTable::UpdateTransPos(transPos, chosenMove, extreme, itDepth);
 				}else{
-					MyBoard* b = new MyBoard();
-					memcpy(b->board, board, 81 * sizeof(char));
-					b->depth = absDepth;
-					b->move = move % 9;
-					b->hash = hash ^ hash_pl[chosenMove];
-					trans->insert(std::make_pair(b, chosenMove));
+					transTable->insert(chosenMove, board, hash, extreme, prevMove, itDepth, movesMade + (itDepth - depth));
 				}
 			}
 
 			return extreme;
 		} 
 
-		void getMoves(int* moves, int move, char* lmBoard, int prefMove){
-			int macroIndex = move % 9;
+		void getMoves(int* moves, int prevMove, char* lmBoard, int prefMove){
+			int macroIndex = prevMove % 9;
 			int minLim = 0;
 			int maxLim = 81;
 
-			if(move > -1 && lmBoard[macroIndex] == 0){ //Strict macro placement
+			if(prevMove > -1 && lmBoard[macroIndex] == 0){ //Strict macro placement
 				minLim = macroIndex * 9;
 				maxLim = minLim + 9;
 			}
@@ -353,10 +304,10 @@ class Engine{
 				if(board[i] == 0){
 					if(lmBoard[i] == 0){
 						moves[lCount] = i;
-						lCount += 1;
 						if(i == prefMove){
-							prefIndex = i;				
+							prefIndex = lCount;				
 						}
+						lCount += 1;
 					}else{
 						moves[hCount] = i;
 						hCount += 1;
@@ -369,7 +320,7 @@ class Engine{
 				int i = moves[hCount];
 				moves[lCount] = i;
 				if(i == prefMove){
-					prefIndex = i;				
+					prefIndex = lCount;				
 				}
 				lCount += 1;
 			}
@@ -521,7 +472,7 @@ class Engine{
 			return -2;
 		}
 
-		int CTI(int x, int y){
+		inline int CTI(int x, int y){
 			int macroX = x / 3; 
 			int macroY = (y / 3) * 3;
 			int macro = macroX + macroY;
@@ -544,47 +495,47 @@ class Engine{
 		}
 
 		void Print(){
-			// fprintf( stderr, "  012 345 678 \n");
-			// int row = 0;
-			// for(char k = 0; k < 9; k++){
-			// 	if(k%3 == 0){
-			// 		fprintf( stderr, " |-----------|\n%d|", row);
-			// 		row++;
-			// 	}
-			// 	for(char i = 0; i < 3; i++){
-			// 		for(char j = 0; j < 3; j++){
-			// 			char p = board[(k / 3) * 18 + k * 3 + i * 9 + j];
+			fprintf( stderr, "  012 345 678 \n");
+			int row = 0;
+			for(char k = 0; k < 9; k++){
+				if(k%3 == 0){
+					fprintf( stderr, " |-----------|\n%d|", row);
+					row++;
+				}
+				for(char i = 0; i < 3; i++){
+					for(char j = 0; j < 3; j++){
+						char p = board[(k / 3) * 18 + k * 3 + i * 9 + j];
 
-			// 			char c = ' ';
-			// 			if(p == -1){ c = 'O';}
-			// 			if(p == 1){ c = 'X';}
-			// 			fprintf( stderr, "%c", c);
-			// 		}
-			// 		fprintf( stderr, "|");
-			// 	}
-			// 	if(k%3 != 2){
-			// 		fprintf( stderr, "\n%d|", row);
-			// 		row++;
-			// 	}else{
-			// 		fprintf( stderr, "\n");
-			// 	}
-			// }
-			// fprintf( stderr, (" |-----------|\n"));
+						char c = ' ';
+						if(p == -1){ c = 'O';}
+						if(p == 1){ c = 'X';}
+						fprintf( stderr, "%c", c);
+					}
+					fprintf( stderr, "|");
+				}
+				if(k%3 != 2){
+					fprintf( stderr, "\n%d|", row);
+					row++;
+				}else{
+					fprintf( stderr, "\n");
+				}
+			}
+			fprintf( stderr, (" |-----------|\n"));
 
-			// fprintf( stderr, " [");
-			// for(char k = 0; k < 9; k++){
+			fprintf( stderr, " [");
+			for(char k = 0; k < 9; k++){
 				
-			// 	for(char i = 0; i < 3; i++){
-			// 		for(char j = 0; j < 3; j++){
-			// 			char p = board[(k / 3) * 18 + k * 3 + i * 9 + j];
+				for(char i = 0; i < 3; i++){
+					for(char j = 0; j < 3; j++){
+						char p = board[(k / 3) * 18 + k * 3 + i * 9 + j];
 
-			// 			char c = 0;
-			// 			if(p == -1){ c = 2;}
-			// 			if(p == 1){ c = 1;}
-			// 			fprintf( stderr, "%d,", c);
-			// 		}
-			// 	}
-			// }
-			// fprintf( stderr, (" ]\n\n"));
+						char c = 0;
+						if(p == -1){ c = 2;}
+						if(p == 1){ c = 1;}
+						fprintf( stderr, "%d,", c);
+					}
+				}
+			}
+			fprintf( stderr, (" ]\n\n"));
 		}
 };

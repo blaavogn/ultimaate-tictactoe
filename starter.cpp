@@ -70,7 +70,6 @@ public:
         engine = new Engine(); 
     }
 
-
     void loop() {
         std::string line;
         std::vector<std::string> command;

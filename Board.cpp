@@ -22,30 +22,28 @@ static const unsigned int hash_op[] = {
   0xcf844ec0, 0x39d8cfdc, 0x99b5f142, 0xb5d328f5, 0x2ee0c247, 0x4f5a254c, 0xe1e1dd47, 0x9d47db69, 0xdcdc07a0
 };
 
-class MyBoard{
+class Board{
 	public: 
 		char* board;
 	  char move;
 		char depth;
+		float eval;
 		unsigned int hash;
 	
-	MyBoard(){
+	Board(){
 		move = 0;
 		depth = 0;
 		hash = 0;
 	}
 
-	~MyBoard(){
+	~Board(){
 		delete(board);
 	}  
 };
 
 struct MyEqual {
-	bool operator()( MyBoard* const &l,MyBoard* const &r) const {
+	bool operator()( Board* const &l,Board* const &r) const {
 		if(l->move != r->move){
-			return false;
-		}
-		if(l->depth != r->depth){
 			return false;
 		}
 	  for(int i = 0; i < 81; i++){
@@ -59,7 +57,7 @@ struct MyEqual {
 
 struct MyHash
 {
-    std::size_t operator()(MyBoard* const& s) const 
+    std::size_t operator()(Board* const& s) const 
     {	
     	return s->hash;
     }

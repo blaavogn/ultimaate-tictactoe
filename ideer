@@ -1,0 +1,3 @@
+Ideer:
+  - Gem alle micro states i et hashmap for konstant evaluering af state.
+	-	Lignende ting for alle vurderinger. Også heuristik
