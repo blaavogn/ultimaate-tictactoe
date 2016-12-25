@@ -30,6 +30,7 @@ class HashBoard{
 	  char prevMove; //Part of boardState
 		char itDepth;
 		char movesMade;
+		char cut;
 		float eval;
 		unsigned int hash; //This probably looks weird, but it is because an incremental hash is calculated
 		//It is should be way more efficient than recalculating it every time
@@ -39,6 +40,7 @@ class HashBoard{
 		itDepth = 0;
 		hash = 0;
 		movesMade = 0;
+		cut = 0;
 	}
 
 	~HashBoard(){
