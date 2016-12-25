@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdint.h>
 #include <unordered_map>
 #include "TicTacBoard.cpp"
@@ -8,15 +10,17 @@ class TicTacEval{
 	const int O = 2;
 	const int DR = 3;
 
-	const uint64_t BM_FULL = 0xffffffffffffffff;
-	const uint64_t BM_EVAL = BM_FULL & 3;
-
  	std::unordered_map<int,uint64_t> *map;
 
 	int *plTmp;
 	int *opTmp;
 
 	public:
+		const uint64_t BM_FULL = 0xffffffffffffffff;
+		const uint64_t BM_EVAL = (BM_FULL & ((1 << 2) - 1));
+		const uint64_t BM_PL   = (BM_FULL & ((1 << 20) - 1)) ^ BM_EVAL;
+		const uint64_t BM_OP   = (BM_FULL & (((uint64_t)1 << 39) - 1)) ^ BM_PL;
+
 		TicTacEval(){
 			map = new std::unordered_map<int, uint64_t>(20000);
 			char* board = new char[9];
@@ -43,8 +47,8 @@ class TicTacEval{
 				
 				ent |= v;
 				for(int i = 0; i < 9; i++){
-					ent |= ((uint64_t) plTmp[i]) << (2 * i + 2);	
-					ent |= ((uint64_t) opTmp[i]) << (2 * i + 20);	
+					ent |= ((uint64_t) ((plTmp[i]) > 2 ? 3 : 0)) << (2 * i + 2);	
+					ent |= ((uint64_t) (opTmp[i] > 2 ? 3 : 0)) << (2 * i + 20);	
 				} 
 				
 				// printf("%d\n", v);

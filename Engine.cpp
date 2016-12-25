@@ -5,6 +5,8 @@
 #include "HashBoard.cpp"
 #include "TranspositionTable.cpp"
 #include "TicTacEval.cpp"
+#include "MMEval.cpp"
+#include "Printer.cpp"
 
 class Engine{
 	const float mynan = 0.0/0.0 * -1;
@@ -14,17 +16,11 @@ class Engine{
 	const int O = 2;
 	const int DR = 3;
 
-	const uint64_t BM_FULL = 0xffffffffffffffff;
-	const uint64_t BM_EVAL = (BM_FULL & ((1 << 2) - 1));
-	const uint64_t BM_PL   = (BM_FULL & ((1 << 20) - 1)) ^ BM_EVAL;
-	const uint64_t BM_OP   = (BM_FULL & (((uint64_t)1 << 39) - 1)) ^ BM_PL;
-
 	char *board;
 	char *mBoard;
 	char *pBoard;
 	char *mBoardPool;
 	int *movePool;
-	char *tmpBoard;
 	int gl_PrevMove;
 	char pl, op;
 	int lMove, mNodes;
@@ -34,22 +30,24 @@ class Engine{
 	int transHitFull = 0;
 	int transHit = 0;
 	int hashDepth = 10;
-
+	MMEval* evaluater;
 	float gl_Eval = 0.0;
 	TranspositionTable* transTable;
 	TicTacEval* ticTacEval;
 	HashBoard* hashKey;
+	Printer* printer;
 
 	public:
 		Engine(){
 			board     	= (char*) malloc(sizeof(char) * 81);
 			mBoardPool 	= (char*) malloc(sizeof(char) * 9 * 81);
 			movePool 	  = new int[82 * 81];
-			tmpBoard 		  = (char*) malloc(sizeof(char) * 9);
 			pBoard 		  = (char*) malloc(sizeof(char) * 9);
 			transTable  = new TranspositionTable();
 			hashKey 		= new HashBoard();
 			ticTacEval  = new TicTacEval();
+			evaluater   = new MMEval();
+			printer     = new Printer();
 			hashKey->board = board;
 			gl_PrevMove  	= -1;
 			movesMade   = 0;
@@ -77,7 +75,7 @@ class Engine{
 					}
 				}
 			}	
-			Print();
+			printer->Print(board);
 		}
 
 		std::pair<int, int> Move(int time){
@@ -97,8 +95,7 @@ class Engine{
 			char* rmBoard = mBoardPool + 9 * sizeof(char);
  			
 			for(int j = 0; j < 9; j++){
-				int v = ValidateMacro(board + j * 9) & BM_EVAL;
-				lmBoard[j] = v;
+				lmBoard[j] = ValidateMacro(board + j * 9) & ticTacEval->BM_EVAL;
 			}	
 				
 			int depth;
@@ -107,8 +104,8 @@ class Engine{
 
 				memcpy(rmBoard, lmBoard, 9 * sizeof(char));
 
-				gl_Eval = MTDF(gl_Eval, rmBoard, gl_PrevMove, depth);
-				
+				gl_Eval = Max(rmBoard, gl_PrevMove, depth, -INFINITY, INFINITY);
+				// gl_Eval = MTDF(gl_Eval, rmBoard, gl_PrevMove, depth);
 
 				gettimeofday(&tp, NULL);
 				long int ms2 = tp.tv_sec * 1000 + tp.tv_usec / 1000;
@@ -133,7 +130,7 @@ class Engine{
 			}
 			fprintf( stderr, "%d: Depth %d: %2.3f mN/sec - %2.3f sec\n", movesMade, depth - 1, ((float) mNodes / 1000000.0) / sec, sec);
 			fprintf( stderr, "TransHit: %d Full: %d, transsize: %ld \n", transHit, transHitFull, transTable->size());
-			fprintf( stderr, "Best move: %d, %f\n", chosenMove, transPos->first->eval);
+			fprintf( stderr, "Best move: %d, %f\n", chosenMove, gl_Eval);
 
 			int macro = chosenMove / 9;
 			int micro = chosenMove % 9;
@@ -169,7 +166,6 @@ class Engine{
     }
 
 		float Max(char* lmBoard, int prevMove, int depth, float alpha, float beta){
-			
 			mNodes++;
 			char v = ValidateMacroDelta(lmBoard, prevMove / 9);
 			hashKey->prevMove = prevMove % 9;
@@ -190,10 +186,7 @@ class Engine{
 				return -INFINITY;
 			}
 			else if(depth == 0){
-				 if(v == DR || v == ND){
-					return 0.0;
-				}
-				return H(lmBoard);
+				return evaluater->H(board, lmBoard, pl, ticTacEval);
 			}
 
 			char* rmBoard = mBoardPool + (depth + 1) * 9 * sizeof(char);				
@@ -216,7 +209,7 @@ class Engine{
 
 				int hashChange = hash_pl[i];
 				board[i] = pl;
-				rmBoard[i / 9] = ValidateMicro(board + (i - i % 9)) & BM_EVAL;
+				rmBoard[i / 9] = ValidateMicro(board + (i - i % 9)) & ticTacEval->BM_EVAL;
 				hash = hash ^ hashChange;
 				float e = Min(rmBoard, i, depth - 1, alpha, beta);
 				hash = hash ^ hashChange;
@@ -236,7 +229,7 @@ class Engine{
 				}
 			}
 			if(cut == 2){
-				extreme = 0.0;
+				extreme = 0.00000001;
 				cut = 0;
 			}
 			if(itDepth - depth < hashDepth){
@@ -271,10 +264,7 @@ class Engine{
 				return INFINITY;
 			}
 			else if(depth == 0){
-				 if(v == DR || v == ND){
-					return 0.0;
-				}
-				return H(lmBoard);
+				return evaluater->H(board, lmBoard, pl, ticTacEval);
 			}
 
 			float extreme = INFINITY;
@@ -299,7 +289,7 @@ class Engine{
 
 				int hashChange = hash_op[i];
 				board[i] = op;
-				rmBoard[i / 9] = ValidateMicro(board + (i - i % 9)) & BM_EVAL;
+				rmBoard[i / 9] = ValidateMicro(board + (i - i % 9)) & ticTacEval->BM_EVAL;
 				hash = hash ^ hashChange;
 				float e = Max(rmBoard, i, depth - 1, alpha, beta);
 				hash = hash ^ hashChange;
@@ -319,7 +309,7 @@ class Engine{
 				}
 			}
 			if(cut == 2){
-				extreme = 0.0;
+				extreme = 0.00000001;
 				cut = 0;
 			}
 			if(itDepth - depth < hashDepth){
@@ -381,28 +371,8 @@ class Engine{
 			moves[lCount] = 999;					
 		}
 
-		float H(char *lmBoard){			
-			float h = 0;
-			uint64_t eval = ticTacEval->eval(lmBoard);
-
-			for(int i = 0; i < 81; i++){
-				if(board[i] == 0){
-					tmpBoard[i % 9]++;
-				}
-			}
-			for(int i = 0; i < 9; i++){
-				h += (lmBoard[i] == DR ? 0 : (lmBoard[i] == X ? 1 : -1));
-				int sh = i * 2;
-				int plCon = (eval >> (sh + 20)) & BM_EVAL; 
-				int opCon = -((eval >> (sh + 38)) & BM_EVAL); 
-				int t = tmpBoard[i % 9];
-				h += plCon * t + opCon * t; 
-			}
-			return h * (pl == X ? 1 : -1);
-		}
-
 		char ValidateMicro(char *b){
-			int i = ticTacEval->eval(b) & BM_EVAL;
+			uint64_t i = (ticTacEval->eval(b) & ticTacEval->BM_EVAL);
 			return (i == 3) ? 3 : i;
 		}
 
@@ -425,7 +395,12 @@ class Engine{
 					return (b[move] == 1) ? X : O;
 			}
 
-			return DR;
+			// if(!b[0] || !b[1] || !b[2]
+			// 	 || !b[3] || !b[4] || !b[5]
+			// 	 || !b[6] || !b[7] || !b[8]){
+			// 	return ND;
+			// }
+			return  DR;
 		}
 
 		inline char checkDir(char *lmBoard, int base, int step){
@@ -443,60 +418,5 @@ class Engine{
 			int microY = y % 3 * 3; 
 			int micro = microX + microY;
 			return micro + macro * 9; 
-		}
-
-
-		void PrintMac(char* c){
-			for(int i = 0; i < 9; i++){
-				if(i % 3 == 0){
-					fprintf(stderr, "\n");
-				}
-				fprintf(stderr, "%d,", c[i]);
-			}
-			fprintf(stderr, "\n");
-		}
-
-		void Print(){
-			fprintf( stderr, "  012 345 678 \n");
-			int row = 0;
-			for(char k = 0; k < 9; k++){
-				if(k%3 == 0){
-					fprintf( stderr, " |-----------|\n%d|", row);
-					row++;
-				}
-				for(char i = 0; i < 3; i++){
-					for(char j = 0; j < 3; j++){
-						char p = board[(k / 3) * 18 + k * 3 + i * 9 + j];
-
-						char c = ' ';
-						if(p == O){ c = 'O';}
-						if(p == X){ c = 'X';}
-						fprintf( stderr, "%c", c);
-					}
-					fprintf( stderr, "|");
-				}
-				if(k%3 != 2){
-					fprintf( stderr, "\n%d|", row);
-					row++;
-				}else{
-					fprintf( stderr, "\n");
-				}
-			}
-			fprintf( stderr, (" |-----------|\n"));
-
-			fprintf( stderr, " [");
-			for(char k = 0; k < 9; k++){
-				
-				for(char i = 0; i < 3; i++){
-					for(char j = 0; j < 3; j++){
-						char p = board[(k / 3) * 18 + k * 3 + i * 9 + j];
-						char c = 0;
-						if(p == 2){ c = 2;}
-						if(p == 1){ c = 1;}
-						fprintf( stderr, "%d,", c);
-					}
-				}
-			}
-			fprintf( stderr, (" ]\n\n"));
 		}
 };
