@@ -18,7 +18,6 @@ class Engine{
 
 	char *board;
 	char *mBoard;
-	char *pBoard;
 	char *mBoardPool;
 	int *movePool;
 	int gl_PrevMove;
@@ -42,7 +41,6 @@ class Engine{
 			board     	= (char*) malloc(sizeof(char) * 81);
 			mBoardPool 	= (char*) malloc(sizeof(char) * 9 * 81);
 			movePool 	  = new int[82 * 81];
-			pBoard 		  = (char*) malloc(sizeof(char) * 9);
 			transTable  = new TranspositionTable();
 			hashKey 		= new HashBoard();
 			ticTacEval  = new TicTacEval();
@@ -91,18 +89,9 @@ class Engine{
 			transHit = 0;
 			mNodes = 0;
 
-			char* lmBoard = mBoardPool;
-			char* rmBoard = mBoardPool + 9 * sizeof(char);
- 			
-			for(int j = 0; j < 9; j++){
-				lmBoard[j] = ValidateMacro(board + j * 9) & ticTacEval->BM_EVAL;
-			}	
-				
 			int depth;
-			for(depth = 1; depth < 25; depth++){
+			for(depth = 10; depth < 11; depth++){
 				itDepth = depth;
-
-				memcpy(rmBoard, lmBoard, 9 * sizeof(char));
 
 				gl_Eval = Negamax(rmBoard, gl_PrevMove, depth, -INFINITY, INFINITY, 1);
 				// gl_Eval = MTDF(gl_Eval, rmBoard, gl_PrevMove, depth);
@@ -154,7 +143,7 @@ class Engine{
       float lowerBound = -INFINITY;
       while (lowerBound < upperBound){
     		float beta = (g > lowerBound+1) ? g : lowerBound+1;
-    		g = Negamax(lmBoard, prevMove, depth, beta-1, beta, 1);
+    		g = Negamax(prevMove, depth, beta-1, beta, 1);
   		 	if (g < beta){
           upperBound = g;
   		 	}
@@ -165,7 +154,7 @@ class Engine{
      return g;
     }
 
-		float Negamax(char* lmBoard, int prevMove, int depth, float alpha, float beta, int turn){
+		float Negamax(int prevMove, int depth, float alpha, float beta, int turn){
 			mNodes++;
 			char v = ValidateMacroDelta(lmBoard, prevMove / 9);
 			hashKey->prevMove = prevMove % 9;
@@ -189,8 +178,6 @@ class Engine{
 				return evaluater->H(board, lmBoard, pl, ticTacEval) * turn;
 			}
 
-			char* rmBoard = mBoardPool + (depth + 1) * 9 * sizeof(char);				
-
 			int* moves = &movePool[82 * (80 - depth)];
 			getMoves(moves, prevMove, lmBoard, prefMove);
 			
@@ -207,6 +194,7 @@ class Engine{
 					}
 					break;
 				} 
+
 				memcpy(rmBoard, lmBoard, 9 * sizeof(char));				
 
 				int hashChange = hash_pl[i];
