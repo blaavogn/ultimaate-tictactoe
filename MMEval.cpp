@@ -21,30 +21,49 @@ class MMEval{
 			for(int i = 0; i < 9; i++){
 				tmpBoard[i] = 0;
 			}
-
-			for(int i = 0; i < 81; i++){
-				if(board[i] == 0){
-					tmpBoard[i % 9]++;
+			
+			int free = 0;
+			for(int i = 0; i < 9; i++){
+				if(lmBoard[i] != ND){
+					continue;
+				}
+				int in = i * 9;
+				for(int j = 0; j < 9; j++){
+					int v = board[in + j];
+					if(v != 0){
+						free += (v == X) ? 20 : -20;
+					}else{
+						tmpBoard[j] += 1;
+					}
 				}
 			}
+
+			h += free;
+
+			int plBest = 0;
+			int opBest = 0;
+
 			for(int i = 0; i < 9; i++){
 				int lm = lmBoard[i];
 				if(lm == DR){
 					continue;
 				}
 
-				h += (lmBoard[i] == ND ? 0 : (lmBoard[i] == X ? 1 : -1)) * 200;
-				uint64_t l_eval = ticTacEval->eval(board + i * 9);
-				int plP = (l_eval & ticTacEval->BM_PL) ? 1 : 0;
-				int poP = (l_eval & ticTacEval->BM_OP) ? 1 : 0;
-
+				int t = (lmBoard[i] == ND ? 0 : (lmBoard[i] == X ? 1 : -1)) * 15;
+				h += t;
+				
 				int sh = i * 2;
-				int plCon = (eval >> (sh + 20)) & ticTacEval->BM_EVAL; 
-				int opCon = -((eval >> (sh + 38)) & ticTacEval->BM_EVAL); 
-				int t = tmpBoard[i % 9];
-				h += plCon * t * plP + opCon * t * poP;
+				int plCon = (eval >> (sh + 2)) & ticTacEval->BM_EVAL; 
+				int opCon = ((eval >> (sh + 20)) & ticTacEval->BM_EVAL); 
+
+				plBest = std::max(plCon - 2, plBest);
+				opBest = std::max(opCon - 2, opBest);
+				t = plCon * 3 * tmpBoard[i] + opCon * -3 * tmpBoard[i];
+
+				h += t;
 			}
 
+			h += plBest * 100 - opBest * 100;
 			return h * (pl == X ? 1 : -1);
 		};
 };

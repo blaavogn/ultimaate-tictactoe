@@ -46,19 +46,19 @@ class Printer{
 			}
 			fprintf( stderr, (" |-----------|\n"));
 
-			fprintf( stderr, " [");
-			for(char k = 0; k < 9; k++){
+			// fprintf( stderr, " [");
+			// for(char k = 0; k < 9; k++){
 				
-				for(char i = 0; i < 3; i++){
-					for(char j = 0; j < 3; j++){
-						char p = board[(k / 3) * 18 + k * 3 + i * 9 + j];
-						char c = 0;
-						if(p == 2){ c = 2;}
-						if(p == 1){ c = 1;}
-						fprintf( stderr, "%d,", c);
-					}
-				}
-			}
-			fprintf( stderr, (" ]\n\n"));
+			// 	for(char i = 0; i < 3; i++){
+			// 		for(char j = 0; j < 3; j++){
+			// 			char p = board[(k / 3) * 18 + k * 3 + i * 9 + j];
+			// 			char c = 0;
+			// 			if(p == 2){ c = 2;}
+			// 			if(p == 1){ c = 1;}
+			// 			fprintf( stderr, "%d,", c);
+			// 		}
+			// 	}
+			// }
+			// fprintf( stderr, (" ]\n\n"));
 		}
 		};

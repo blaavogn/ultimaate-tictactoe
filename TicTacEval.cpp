@@ -29,6 +29,7 @@ class TicTacEval{
 			fill(board, 0);
 			delete(plTmp);
 			delete(opTmp);
+
 		}
 
 		long long eval(char* board){
@@ -43,15 +44,29 @@ class TicTacEval{
 		void fill(char* board, int m){
 			if(m==9){
 				int v = ValidateSmall(board);
-				uint ent = 0;
+				uint64_t ent = 0;
 				
 				ent |= v;
 				for(int i = 0; i < 9; i++){
-					ent |= ((uint64_t) ((plTmp[i]) > 2 ? 3 : 0)) << (2 * i + 2);	
-					ent |= ((uint64_t) (opTmp[i] > 2 ? 3 : 0)) << (2 * i + 20);	
+					ent |= ((uint64_t) plTmp[i] << (2 * i + 2));	
+					ent |= (uint64_t) (uint64_t (((uint64_t) opTmp[i]) << (2 * i + 20)));	
 				} 
 				
 				// printf("%d\n", v);
+				// printf("Pl: ");
+				// for(int i = 0; i < 9; i++){
+				// 	int plCon = ((ent >> (i * 2 + 2)) & BM_EVAL); 
+				// 	printf("%d, ",plCon);
+				// }
+				// printf("\n");
+
+				// printf("Op: ");
+				// for(int i = 0; i < 9; i++){
+				// 	int opCon = ((ent >> (i * 2 + 20)) & BM_EVAL); 
+				// 	printf("%d, ",opCon);
+				// }
+				// printf("\n");
+
 				// for(int i = 0; i < 9; i++){
 				// 	printf("%d,",board[i]);
 				// }
@@ -154,6 +169,7 @@ class TicTacEval{
 			return DR;
 		}
 
+	public: 
 		void hDirection(char *lmBoard, int* tmp, int o, int base, int step){
 			int m = 0;
 			int c = 0;
@@ -182,9 +198,7 @@ class TicTacEval{
 					if((m & (1 << j)) != 0){
 						int ind = base + j * step;
 						int oldVal = tmp[base + j * step];
-						if(oldVal < c + 1){
-							tmp[ind] = c + 1;	
-						}  
+						tmp[ind] = std::max(oldVal, c + 1);
 					}
 				}
 			}

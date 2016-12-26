@@ -176,7 +176,7 @@ class Engine{
 			if(transPos != transTable->end()) {
 				prefMove = transPos->second;
 				transHit++;
-				if(transPos->first->itDepth == itDepth && !transPos->first->cut){
+				if(transPos->first->itDepth == itDepth){
 					transHitFull++;
 					return transPos->first->eval;
 				}
@@ -254,7 +254,7 @@ class Engine{
 			if(transPos != transTable->end()) {
 				prefMove = transPos->second;
 				transHit++;
-				if(transPos->first->itDepth == itDepth && !transPos->first->cut){
+				if(transPos->first->itDepth == itDepth){
 					transHitFull++;
 					return transPos->first->eval;
 				}
