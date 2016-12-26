@@ -104,7 +104,7 @@ class Engine{
 
 				memcpy(rmBoard, lmBoard, 9 * sizeof(char));
 
-				gl_Eval = Max(rmBoard, gl_PrevMove, depth, -INFINITY, INFINITY);
+				gl_Eval = Negamax(rmBoard, gl_PrevMove, depth, -INFINITY, INFINITY, 1);
 				// gl_Eval = MTDF(gl_Eval, rmBoard, gl_PrevMove, depth);
 
 				gettimeofday(&tp, NULL);
@@ -154,7 +154,7 @@ class Engine{
       float lowerBound = -INFINITY;
       while (lowerBound < upperBound){
     		float beta = (g > lowerBound+1) ? g : lowerBound+1;
-    		g = Max(lmBoard, prevMove, depth, beta-1, beta);
+    		g = Negamax(lmBoard, prevMove, depth, beta-1, beta, 1);
   		 	if (g < beta){
           upperBound = g;
   		 	}
@@ -165,7 +165,7 @@ class Engine{
      return g;
     }
 
-		float Max(char* lmBoard, int prevMove, int depth, float alpha, float beta){
+		float Negamax(char* lmBoard, int prevMove, int depth, float alpha, float beta, int turn){
 			mNodes++;
 			char v = ValidateMacroDelta(lmBoard, prevMove / 9);
 			hashKey->prevMove = prevMove % 9;
@@ -186,7 +186,7 @@ class Engine{
 				return -INFINITY;
 			}
 			else if(depth == 0){
-				return evaluater->H(board, lmBoard, pl, ticTacEval);
+				return evaluater->H(board, lmBoard, pl, ticTacEval) * turn;
 			}
 
 			char* rmBoard = mBoardPool + (depth + 1) * 9 * sizeof(char);				
@@ -196,6 +196,8 @@ class Engine{
 			
 			float extreme = -INFINITY;
 			int chosenMove = 0;
+			int token = (turn == 1) ? pl : op;
+
 			char cut = 0;
 			for(int i = 0, c = 0; ;){
 				i = moves[c++]; 
@@ -208,10 +210,10 @@ class Engine{
 				memcpy(rmBoard, lmBoard, 9 * sizeof(char));				
 
 				int hashChange = hash_pl[i];
-				board[i] = pl;
+				board[i] = token;
 				rmBoard[i / 9] = ValidateMicro(board + (i - i % 9)) & ticTacEval->BM_EVAL;
 				hash = hash ^ hashChange;
-				float e = Min(rmBoard, i, depth - 1, alpha, beta);
+				float e = Negamax(rmBoard, i, depth - 1, beta * -1, alpha * -1, turn * -1) * -1;
 				hash = hash ^ hashChange;
 				board[i] = 0;
 
@@ -219,17 +221,16 @@ class Engine{
 					extreme = e;
 					chosenMove = i;
 				}
-				if(e >= beta){
+				alpha = std::max(alpha, e);
+
+				if(alpha >= beta){
 					chosenMove = i;
 					cut = 1;
 					break;
 				}
-				if(e > alpha){
-					alpha = e;	
-				}
 			}
 			if(cut == 2){
-				extreme = 0.00000001;
+				extreme = 0.0;
 				cut = 0;
 			}
 			if(itDepth - depth < hashDepth){
@@ -239,87 +240,6 @@ class Engine{
 					transTable->insert(chosenMove, board, hash, extreme, prevMove, itDepth, movesMade + (itDepth - depth), cut);
 				}
 			}
-			return extreme;
-		} 
-
-		float Min(char* lmBoard, int prevMove, int depth, float alpha, float beta){
-			mNodes++;
-			char v = ValidateMacroDelta(lmBoard, prevMove / 9);
-
-			hashKey->prevMove = prevMove % 9;
-			hashKey->hash = hash;
-			
-			auto transPos = transTable->find(hashKey);
-			char prefMove = -1;
-			if(transPos != transTable->end()) {
-				prefMove = transPos->second;
-				transHit++;
-				if(transPos->first->itDepth == itDepth){
-					transHitFull++;
-					return transPos->first->eval;
-				}
-			}
-
-			if(v != ND && v != DR){
-				return INFINITY;
-			}
-			else if(depth == 0){
-				return evaluater->H(board, lmBoard, pl, ticTacEval);
-			}
-
-			float extreme = INFINITY;
-
-			char* rmBoard = mBoardPool + (depth + 1) * 9 * sizeof(char);				
-
-			int* moves = &movePool[82 * (80 - depth)];
-			getMoves(moves, prevMove, lmBoard, prefMove);
-
-			char cut = 0;
-			int chosenMove = 0;
-			for(int i = 0, c = 0; ;){
-				i = moves[c++]; 
-				if(i == 999){
-					if(c == 1){
-						cut = 2;
-					}
-					break;
-				} 
-				
-				memcpy(rmBoard, lmBoard, 9 * sizeof(char));				
-
-				int hashChange = hash_op[i];
-				board[i] = op;
-				rmBoard[i / 9] = ValidateMicro(board + (i - i % 9)) & ticTacEval->BM_EVAL;
-				hash = hash ^ hashChange;
-				float e = Max(rmBoard, i, depth - 1, alpha, beta);
-				hash = hash ^ hashChange;
-				board[i] = 0;
-
-				if(e <= extreme){
-					extreme = e;
-					chosenMove = i;
-				}
-				if(e <= alpha){
-					chosenMove = i;
-					cut = 1;
-					break;
-				}
-				if(e < beta){
-					beta = e;
-				}
-			}
-			if(cut == 2){
-				extreme = 0.00000001;
-				cut = 0;
-			}
-			if(itDepth - depth < hashDepth){
-				if(transPos != transTable->end()){
-					TranspositionTable::UpdateTransPos(transPos, chosenMove, extreme, itDepth, cut);
-				}else{
-					transTable->insert(chosenMove, board, hash, extreme, prevMove, itDepth, movesMade + (itDepth - depth), cut);
-				}
-			}
-
 			return extreme;
 		} 
 
@@ -395,11 +315,6 @@ class Engine{
 					return (b[move] == 1) ? X : O;
 			}
 
-			// if(!b[0] || !b[1] || !b[2]
-			// 	 || !b[3] || !b[4] || !b[5]
-			// 	 || !b[6] || !b[7] || !b[8]){
-			// 	return ND;
-			// }
 			return  DR;
 		}
 
