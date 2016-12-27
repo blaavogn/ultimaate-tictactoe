@@ -5,5 +5,8 @@
 #include "TicTacEval.cpp"
 
 int main(){
-	TicTacEval t;
+//	TicTacEval t;
+	if(0.0 / 0.0 * -1 >= INFINITY){
+		printf("asdasdas\n");
+	}
 }

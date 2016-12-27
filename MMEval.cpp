@@ -54,7 +54,7 @@ class MMEval{
 				
 				int sh = i * 2;
 				int plCon = (eval >> (sh + 2)) & ticTacEval->BM_EVAL; 
-				int opCon = ((eval >> (sh + 20)) & ticTacEval->BM_EVAL); 
+				int opCon = ((eval >> (sh + 22)) & ticTacEval->BM_EVAL); 
 
 				plBest = std::max(plCon - 2, plBest);
 				opBest = std::max(opCon - 2, opBest);

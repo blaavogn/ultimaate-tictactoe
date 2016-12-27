@@ -18,8 +18,8 @@ class TicTacEval{
 	public:
 		const uint64_t BM_FULL = 0xffffffffffffffff;
 		const uint64_t BM_EVAL = (BM_FULL & ((1 << 2) - 1));
-		const uint64_t BM_PL   = (BM_FULL & ((1 << 20) - 1)) ^ BM_EVAL;
-		const uint64_t BM_OP   = (BM_FULL & (((uint64_t)1 << 39) - 1)) ^ BM_PL;
+		const uint64_t BM_PL   = (BM_FULL & ((1 << 22) - 1)) ^ BM_EVAL;
+		const uint64_t BM_OP   = (BM_FULL & (((uint64_t)1 << 40) - 1)) ^ BM_PL;
 
 		TicTacEval(){
 			map = new std::unordered_map<int, uint64_t>(20000);
@@ -32,11 +32,11 @@ class TicTacEval{
 
 		}
 
-		long long eval(char* board){
+		uint64_t eval(char* board){
 			return map->at(TicTacBoard::Hash(board));
 		}
 
-		long long evalMacro(char* board){
+		uint64_t evalMacro(char* board){
 			return map->at(TicTacBoard::HashMacro(board));
 		}
 
@@ -46,32 +46,19 @@ class TicTacEval{
 				int v = ValidateSmall(board);
 				uint64_t ent = 0;
 				
+				int plMax = 0;
+				int opMax = 0;
+				
 				ent |= v;
 				for(int i = 0; i < 9; i++){
 					ent |= ((uint64_t) plTmp[i] << (2 * i + 2));	
-					ent |= (uint64_t) (uint64_t (((uint64_t) opTmp[i]) << (2 * i + 20)));	
+					ent |= (uint64_t) (uint64_t (((uint64_t) opTmp[i]) << (2 * i + 22)));	
+					plMax = std::max(plMax, plTmp[i]);
+					opMax = std::max(opMax, plTmp[i]);
 				} 
+				ent |= ((uint64_t) plMax << 20);	
+				ent |= ((uint64_t) opMax << 40);
 				
-				// printf("%d\n", v);
-				// printf("Pl: ");
-				// for(int i = 0; i < 9; i++){
-				// 	int plCon = ((ent >> (i * 2 + 2)) & BM_EVAL); 
-				// 	printf("%d, ",plCon);
-				// }
-				// printf("\n");
-
-				// printf("Op: ");
-				// for(int i = 0; i < 9; i++){
-				// 	int opCon = ((ent >> (i * 2 + 20)) & BM_EVAL); 
-				// 	printf("%d, ",opCon);
-				// }
-				// printf("\n");
-
-				// for(int i = 0; i < 9; i++){
-				// 	printf("%d,",board[i]);
-				// }
-				// printf("\n\n");
-
 				map->insert(std::make_pair(TicTacBoard::Hash(board),ent));
 			}else{
 				for(int i = 0; i < 3; i++){
