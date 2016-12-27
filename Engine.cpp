@@ -222,10 +222,12 @@ class Engine{
 				uint64_t newMBoardValue = ValidateMicro(board + (i - i % 9));
 				mBoard[macroIndex] = newMBoardValue & ticTacEval->BM_EVAL;
 				mBoardFull[macroIndex] = newMBoardValue;
-	
+				
+				int LMR = (c > 2) = 1 : 0;
+
 				int hashChange = hash_pl[i];
 				hash = hash ^ hashChange;
-				float e = Negamax(i, depth - 1, beta * -1, alpha * -1, turn * -1) * -1;
+				float e = Negamax(i, depth - 1 - LMR, beta * -1, alpha * -1, turn * -1) * -1;
 				hash = hash ^ hashChange;
 
 				mBoardFull[macroIndex] = oldMBoardValue;
