@@ -16,7 +16,7 @@ class MMEval{
 
 		float H(char *board, char *lmBoard, char pl, TicTacEval *ticTacEval){
 			float h = 0;
-			uint64_t eval = ticTacEval->evalMacro(lmBoard);
+			uint64_t eval = ticTacEval->eval(lmBoard);
 
 			for(int i = 0; i < 9; i++){
 				tmpBoard[i] = 0;
@@ -31,7 +31,7 @@ class MMEval{
 				for(int j = 0; j < 9; j++){
 					int v = board[in + j];
 					if(v != 0){
-						free += (v == X) ? 20 : -20;
+						free += (v == X) ? 12 : -12;
 					}else{
 						tmpBoard[j] += 1;
 					}

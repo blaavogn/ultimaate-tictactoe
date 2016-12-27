@@ -2,7 +2,22 @@
 
 #include <stdint.h>
 #include <unordered_map>
-#include "TicTacBoard.cpp"
+
+static const std::size_t hash_tt_no[] = {
+ 0,0,0,0,0,0,0,0,0
+};
+
+static const std::size_t hash_tt_pl[] = {
+  1,3,9,27,81,243,729,2187,6561
+};
+
+static const std::size_t hash_tt_op[] = {
+  2,6,18,54,162,486,1458,4374,13122
+};
+
+static const std::size_t *hash_tts[]{
+	hash_tt_no,hash_tt_pl,hash_tt_op
+};
 
 class TicTacEval{
 	const int ND = 0;
@@ -10,7 +25,7 @@ class TicTacEval{
 	const int O = 2;
 	const int DR = 3;
 
- 	std::unordered_map<int,uint64_t> *map;
+ 	uint64_t *map;
 
 	int *plTmp;
 	int *opTmp;
@@ -22,7 +37,7 @@ class TicTacEval{
 		const uint64_t BM_OP   = (BM_FULL & (((uint64_t)1 << 40) - 1)) ^ BM_PL;
 
 		TicTacEval(){
-			map = new std::unordered_map<int, uint64_t>(20000);
+			map = new uint64_t[19683];
 			char* board = new char[9];
 			plTmp = new int[9];
 			opTmp = new int[9];
@@ -32,12 +47,22 @@ class TicTacEval{
 
 		}
 
-		uint64_t eval(char* board){
-			return map->at(TicTacBoard::Hash(board));
+		inline uint64_t eval(char *board){
+			std::size_t hash = 0;
+			hash += hash_tts[(int)board[0]][0];
+			hash += hash_tts[(int)board[1]][1];
+			hash += hash_tts[(int)board[2]][2];
+			hash += hash_tts[(int)board[3]][3];
+			hash += hash_tts[(int)board[4]][4];
+			hash += hash_tts[(int)board[5]][5];
+			hash += hash_tts[(int)board[6]][6];
+			hash += hash_tts[(int)board[7]][7];
+			hash += hash_tts[(int)board[8]][8];
+			return map[hash];
 		}
 
-		uint64_t evalMacro(char* board){
-			return map->at(TicTacBoard::HashMacro(board));
+		inline uint64_t evalPure(std::size_t hash){
+			return map[hash];
 		}
 
 	private:
@@ -59,7 +84,18 @@ class TicTacEval{
 				ent |= ((uint64_t) plMax << 20);	
 				ent |= ((uint64_t) opMax << 40);
 				
-				map->insert(std::make_pair(TicTacBoard::Hash(board),ent));
+				std::size_t hash = 0;
+				hash += hash_tts[(int)board[0]][0];
+				hash += hash_tts[(int)board[1]][1];
+				hash += hash_tts[(int)board[2]][2];
+				hash += hash_tts[(int)board[3]][3];
+				hash += hash_tts[(int)board[4]][4];
+				hash += hash_tts[(int)board[5]][5];
+				hash += hash_tts[(int)board[6]][6];
+				hash += hash_tts[(int)board[7]][7];
+				hash += hash_tts[(int)board[8]][8];
+
+				map[hash] = ent;
 			}else{
 				for(int i = 0; i < 3; i++){
 					board[m] = i;
