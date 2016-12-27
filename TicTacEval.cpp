@@ -16,7 +16,7 @@ static const std::size_t hash_tt_op[] = {
 };
 
 static const std::size_t *hash_tts[]{
-	hash_tt_no,hash_tt_pl,hash_tt_op
+	hash_tt_no,hash_tt_pl,hash_tt_op,hash_tt_no
 };
 
 class TicTacEval{
@@ -33,8 +33,6 @@ class TicTacEval{
 	public:
 		const uint64_t BM_FULL = 0xffffffffffffffff;
 		const uint64_t BM_EVAL = (BM_FULL & ((1 << 2) - 1));
-		const uint64_t BM_PL   = (BM_FULL & ((1 << 22) - 1)) ^ BM_EVAL;
-		const uint64_t BM_OP   = (BM_FULL & (((uint64_t)1 << 40) - 1)) ^ BM_PL;
 
 		TicTacEval(){
 			map = new uint64_t[19683];
@@ -79,7 +77,7 @@ class TicTacEval{
 					ent |= ((uint64_t) plTmp[i] << (2 * i + 2));	
 					ent |= (uint64_t) (uint64_t (((uint64_t) opTmp[i]) << (2 * i + 22)));	
 					plMax = std::max(plMax, plTmp[i]);
-					opMax = std::max(opMax, plTmp[i]);
+					opMax = std::max(opMax, opTmp[i]);
 				} 
 				ent |= ((uint64_t) plMax << 20);	
 				ent |= ((uint64_t) opMax << 40);
@@ -94,6 +92,30 @@ class TicTacEval{
 				hash += hash_tts[(int)board[6]][6];
 				hash += hash_tts[(int)board[7]][7];
 				hash += hash_tts[(int)board[8]][8];
+
+				// printf("%d\n", v);
+				// printf("Pl: ");
+				// for(int i = 0; i < 9; i++){
+				// 	int plCon = ((ent >> (i * 2 + 2)) & BM_EVAL); 
+				// 	printf("%d, ",plCon);
+				// }
+				// int plCon = ((ent >> 20) & BM_EVAL); 
+				// printf("| %d ",plCon);
+				// printf("\n");
+
+				// printf("Op: ");
+				// for(int i = 0; i < 9; i++){
+				// 	int opCon = ((ent >> (i * 2 + 20)) & BM_EVAL); 
+				// 	printf("%d, ",opCon);
+				// }
+				// int opCon = ((ent >> 40) & BM_EVAL); 
+				// printf("| %d ",opCon);
+				// printf("\n");
+
+				// for(int i = 0; i < 9; i++){
+				// 	printf("%d,",board[i]);
+				// }
+				// printf("\n\n");
 
 				map[hash] = ent;
 			}else{

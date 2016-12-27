@@ -12,7 +12,7 @@ class TranspositionTable{
 		}
 
 		~TranspositionTable(){
-			//Delete all keys and objects in map
+			delete(map);
 		}
 
 		void insert(int chosenMove, char* board, int hash, float val, int prevMove, int itDepth, int movesMade, char cut){

@@ -1,12 +1,13 @@
+// unordered_map::size
 #include <iostream>
-#include <sys/time.h>
-#include <math.h>
-#include <string.h>
-#include "TicTacEval.cpp"
+#include <string>
+#include <unordered_map>
 
-int main(){
-//	TicTacEval t;
-	if(0.0 / 0.0 * -1 >= INFINITY){
-		printf("asdasdas\n");
-	}
+int main ()
+{
+  std::unordered_map<std::string,double> mymap;
+
+  std::cout << "mymap.size() is " << mymap.size() << std::endl;
+
+  return 0;
 }
