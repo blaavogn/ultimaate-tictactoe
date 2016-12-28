@@ -1,5 +1,6 @@
 #include <iostream>
 #include <unordered_map>
+#include <cstring>
 #include "HashBoard.cpp"
 
 class TranspositionTable{
@@ -15,10 +16,12 @@ class TranspositionTable{
 			delete(map);
 		}
 
-		void insert(int chosenMove, char* board, int hash, float val, int prevMove, int itDepth, int movesMade, char cut){
+		void insert(int chosenMove, char* board, std::size_t hash, float val, int prevMove, int itDepth, int movesMade, char cut){
 				HashBoard* b = new HashBoard();
 				b->board = new char[81];
-				memcpy(b->board, board, 81 * sizeof(char));
+				for(int i = 0; i < 81; i++){
+					b->board[i] = board[i];
+				}
 				b->hash = hash;
 				b->eval = val;
 				b->prevMove = prevMove % 9;

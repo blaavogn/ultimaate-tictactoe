@@ -8,21 +8,23 @@ void place(int *b, int x, int y, int v){
 int main(int argc, char *argv[]) {
   Engine* eng = new Engine();
  	int board[81] = {1,0,0,2,1,1,2,2,1,0,0,0,1,1,0,0,0,0,2,2,2,0,2,2,0,0,0,2,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-	board[46] = 2;
-	board[47] = 2;
-
+	// board[46] = 2;
+	// board[47] = 2;
+ 	for(int i = 0; i < 81; i++){
+ 		board[i] = 0;
+ 	}
  	int op = (int) (argv[1][0] - '0');
  	int pl = (op == 1) ? -1 : 1;
 
  	eng->SetPlayer(op);
-	eng->Update(board);
-	board[15] = 1;
+	// eng->Update(board);
+	// board[15] = 1;
 	eng->Update(board);
 	char *buffer;
   size_t n = 12;
   buffer = (char*) malloc(n);
 
-  int turn = (pl == 1) ? -1 : 1;
+  int turn = (pl == 1) ? 1 : -1;
 
  	while(true){ 		
  		if(turn == 1){ //player turn

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 static const unsigned int hash_pl[]  = {
   0x0cf46381, 0x03a1a0ac, 0x0958f091, 0x54aa234a, 0x6d9996cb, 0x0eaf1055, 0x99369982, 0x73a4a478, 0x367a4a1e,
   0x17aa8d1c, 0x0f3882ca, 0xb3ed1eff, 0x0147e7d6, 0xb710a367, 0x00e789c2, 0xc741cbe0, 0x7446ee5a, 0x02e55e17,
@@ -50,7 +52,7 @@ class HashBoard{
 
 struct HashBoardEqual {
 	bool operator()( HashBoard* const &l,HashBoard* const &r) const {
-		if(l->prevMove != r->prevMove){
+		if(l->prevMove % 9 != r->prevMove % 9){
 			return false;
 		}
 	  for(int i = 0; i < 81; i++){
