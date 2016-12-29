@@ -30,7 +30,7 @@ class Engine{
 	int transHitFull = 0;
 	int transHit = 0;
 	int LMR_Re = 0;
-	int hashDepth = 14;
+	int hashDepth = 6;
 	int ponder = 0;
 	MMEval* evaluater;
 	float gl_Eval = 0.0;
@@ -43,9 +43,7 @@ class Engine{
   
 	public:
 		Engine(){
- 	 //		srand(time(0));
-
-			board     	= new char[81];
+ 			board     	= new char[81];
 			mBoard 			= new char[9];
 			mPlaceWon 	= new char[9];
 			mBoardFull 	= new uint64_t[9];
@@ -61,6 +59,9 @@ class Engine{
 			ponder  	  = 1;
 			movesMade   = 0;
 			randMoves = new int[81];
+			
+			srand( time( NULL ) );
+
 			for(int i = 0; i < 9; i++){
 				mBoard[i] = 0;
 				mBoardFull[i] = 0;
@@ -68,12 +69,17 @@ class Engine{
 			}
 
 			for(int i = 0; i < 81; i++){
+				board[i] = 0;
 				randMoves[i] = i;
+				if(i % 9 == 8){
+					randMoves[i] = i - 4;
+					randMoves[i - 4] = i;
+				}
 			}
 
 			for(int i = 0; i < 9; i++){
-				for(int j = 0; j < 9; j++){
-					int in = rand() % (9 - j) + j;
+				for(int j = 0; j < 8; j++){
+					int in = rand() % (8 - j) + j;
 					int mv = randMoves[i * 9 + in];
 					randMoves[i * 9 + in] = randMoves[i * 9 + j]; 						
 					randMoves[i * 9 + j] = mv; 						
@@ -114,6 +120,7 @@ class Engine{
 			if(movesMade == 0){
 				return std::make_pair(4,4);
 			}
+
 			struct timeval tp;
 			gettimeofday(&tp, NULL);
 			long int ms = tp.tv_sec * 1000 + tp.tv_usec / 1000;
@@ -131,7 +138,7 @@ class Engine{
 			}	
 				
 			int depth;
-			for(depth = 3; depth < 20; depth++){
+			for(depth = 6; depth < 25; depth++){
 				itDepth = depth;
 
 				gl_Eval = Negamax(gl_PrevMove, depth, -INFINITY, INFINITY, 1);
@@ -140,7 +147,7 @@ class Engine{
 				gettimeofday(&tp, NULL);
 				long int ms2 = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 				sec = ((float) (ms2-ms) / 1000.0);
-				// fprintf(stderr, "%d - %f - %f\n", depth, gl_Eval, sec);
+				fprintf(stderr, "%d - %f - %f\n", depth, gl_Eval, sec);
 				if(time < 5000 && sec > 0.200)
 					break;
 				if(time < 2500 && sec > 0.110)
@@ -268,7 +275,7 @@ class Engine{
 			}
 			else if(depth <= 0){
 				if(qMoves > 0){
-					return qSearch(prevMove, turn, 78);
+					return qSearch(prevMove, turn, 78, alpha, beta);
 				}
 				return evaluater->H(board, mBoardFull, pl, ticTacEval) * turn;
 			}
@@ -339,7 +346,7 @@ class Engine{
 			return extreme;
 		} 
 
-		float qSearch(int prevMove, int turn, int depth){
+		float qSearch(int prevMove, int turn, int depth, float alpha, float beta){
 			mNodes++;
 
 			int token = (turn == 1) ? pl : op;
@@ -368,14 +375,24 @@ class Engine{
 				uint64_t newMBoardValue = ticTacEval->evalPure(boardHash[macroIndex]);
 				mBoard[macroIndex] = newMBoardValue & ticTacEval->BM_EVAL;
 				mBoardFull[macroIndex] = newMBoardValue;
-				float	e = qSearch(i, turn * -1, depth - 1) * -1;
+				float	e = qSearch(i, turn * -1, depth - 1, beta * -1, alpha * -1) * -1;
 
 				mBoardFull[macroIndex] = oldMBoardValue;
 				mBoard[macroIndex] = oldMBoardValue & ticTacEval->BM_EVAL;
 				boardHash[macroIndex] -= hash_tts[token][i % 9];
 
 				board[i] = 0;				
+				
+				if(isnan(e)){
+					continue;
+				}
 				extreme = fmax(extreme, e);
+				alpha = fmax(alpha, e);
+
+				if(alpha >= beta){
+					extreme = mynan;
+					break;
+				}
 			}
 			return extreme;
 		}
@@ -404,7 +421,7 @@ class Engine{
 				}
 				int mv = randMoves[i];
 				if(mv == prefMove){
-					continue;
+					continue;	
 				}
 				int sh = (player == X) ? 40 : 20;
 				int sh_i = (player == X) ? 2 : 22;

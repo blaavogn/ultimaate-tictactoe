@@ -39,10 +39,11 @@ class TicTacEval{
 			char* board = new char[9];
 			plTmp = new int[9];
 			opTmp = new int[9];
+			plPos = new int[9];
+			opPos = new int[9];
 			fill(board, 0);
 			delete(plTmp);
 			delete(opTmp);
-
 		}
 
 		inline uint64_t eval(char *board){
@@ -105,7 +106,7 @@ class TicTacEval{
 
 				// printf("Op: ");
 				// for(int i = 0; i < 9; i++){
-				// 	int opCon = ((ent >> (i * 2 + 20)) & BM_EVAL); 
+				// 	int opCon = ((ent >> (i * 2 + 22)) & BM_EVAL); 
 				// 	printf("%d, ",opCon);
 				// }
 				// int opCon = ((ent >> 40) & BM_EVAL); 

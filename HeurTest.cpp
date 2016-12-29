@@ -19,7 +19,7 @@ class HeurTest{
 			int boardCounts = inBoards->size() * 2;
 			
 			char* boards = new char[boardCounts * 81];
-			uint64_t* lmBoard = new char[9];
+			uint64_t* lmBoard = new uint64_t[9];
 
 			int count = 0;
 			for(auto it = inBoards->begin(); it != inBoards->end(); ++it ){
@@ -34,7 +34,7 @@ class HeurTest{
 			for(int i = 0; i < boardCounts; i++){
 				char* board = boards + 81 * i;
 				for(int j = 0; j < 9; j++){
-					uint64_t[j] = ticTacEval->eval(board + j * 9);
+					lmBoard[j] = ticTacEval->eval(board + j * 9);
 				}
 
 				eval(board, lmBoard, i % 2);
@@ -44,7 +44,7 @@ class HeurTest{
 		}
 
 	private:
-		void eval(char* boards, char* lmBoard, int flip){
+		void eval(char* boards, uint64_t* lmBoard, int flip){
 			char pl1 = (flip == 0) ? 'O' : 'X';
 			char pl2 = (flip == 0) ? 'X' : 'O';
 			fprintf(stderr,"%c: %f, %c: %f\n", pl1,mmEval->H(boards, lmBoard, 1, ticTacEval), pl2,
