@@ -39,8 +39,12 @@ class Engine{
 	HashBoard* hashKey;
 	Printer* printer;
 
+	int* randMoves;
+  
 	public:
 		Engine(){
+ 	 //		srand(time(0));
+
 			board     	= new char[81];
 			mBoard 			= new char[9];
 			mPlaceWon 	= new char[9];
@@ -56,11 +60,24 @@ class Engine{
 			gl_PrevMove = -1;
 			ponder  	  = 1;
 			movesMade   = 0;
-
+			randMoves = new int[81];
 			for(int i = 0; i < 9; i++){
 				mBoard[i] = 0;
 				mBoardFull[i] = 0;
 				boardHash[i] = 0;
+			}
+
+			for(int i = 0; i < 81; i++){
+				randMoves[i] = i;
+			}
+
+			for(int i = 0; i < 9; i++){
+				for(int j = 0; j < 9; j++){
+					int in = rand() % (9 - j) + j;
+					int mv = randMoves[i * 9 + in];
+					randMoves[i * 9 + in] = randMoves[i * 9 + j]; 						
+					randMoves[i * 9 + j] = mv; 						
+				}
 			}
 		}
 	
@@ -384,30 +401,34 @@ class Engine{
 				if(mBoard[i / 9] != ND){
 					i += 8;
 					continue; //Skipping macros that is done
-				} 
+				}
+				int mv = randMoves[i];
+				if(mv == prefMove){
+					continue;
+				}
 				int sh = (player == X) ? 40 : 20;
 				int sh_i = (player == X) ? 2 : 22;
 
-				if(board[i] == 0){
-					int iMod = i % 9;
+				if(board[mv] == 0){
+					int iMod = mv % 9;
 
-					if(((mBoardFull[i / 9] >> (sh_i + 2 * iMod)) & ticTacEval->BM_EVAL) == 3){
+					if(((mBoardFull[mv / 9] >> (sh_i + 2 * iMod)) & ticTacEval->BM_EVAL) == 3){
 						qCount++; //Qsearch move
 					
 						if(lCount > bCount){
 							int tmp = moves[bCount];
-							moves[bCount++] = i;
+							moves[bCount++] = mv;
 							moves[lCount++] = tmp;
 						}else{
 							bCount++;
-							moves[lCount++] = i;
+							moves[lCount++] = mv;
 						}
 					}else	if(mBoard[iMod] == ND && ((mBoardFull[iMod] >> sh) & ticTacEval->BM_EVAL) != 3){
 						//Normal move
-						moves[lCount++] = i;
+						moves[lCount++] = mv;
 					}else{
 						//Bad move
-						moves[hCount++] = i;
+						moves[hCount++] = mv;
 					}
 				}
 			}
