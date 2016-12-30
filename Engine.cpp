@@ -133,12 +133,12 @@ class Engine{
 
 			for(int j = 0; j < 9; j++){
 				uint64_t v = ticTacEval->eval(board + j * 9);
-				mBoard[j] = v & ticTacEval->BM_EVAL; 
+				mBoard[j] = v & ticTacEval->BM_EVAL;
 				mBoardFull[j] = v; 
 			}	
 				
 			int depth;
-			for(depth = 6; depth < 25; depth++){
+			for(depth = 9; depth < 10; depth++){
 				itDepth = depth;
 
 				gl_Eval = Negamax(gl_PrevMove, depth, -INFINITY, INFINITY, 1);
@@ -201,6 +201,7 @@ class Engine{
 				int k = 0;
 				getMoves(movePool, gl_PrevMove, pl, &k, -1);
 				chosenMove = movePool[0];
+				fprintf(stderr, "Choosing loose %d\n", chosenMove);
 			}
 
 			int macro = chosenMove / 9;
@@ -280,8 +281,8 @@ class Engine{
 				return evaluater->H(board, mBoardFull, pl, ticTacEval) * turn;
 			}
 			
+			
 			float extreme = -INFINITY;
-			float extremeT = -INFINITY;
 			char cut = 0;
 			int chosenMove = -1;
 			for(int c = 0, i = -1;; ){
@@ -290,7 +291,6 @@ class Engine{
 					break;
 				}
 				int macroIndex = i / 9;
-
 				board[i] = token;
 				uint64_t oldMBoardValue = mBoardFull[macroIndex];
 				boardHash[macroIndex] += hash_tts[token][i % 9];
@@ -301,15 +301,15 @@ class Engine{
 				hash = hash ^ hashChange;
 
 				float e;
-				if(c < 3){
+				// if(c < 3){
 					e = Negamax(i, depth - 1, beta * -1, alpha * -1, turn * -1) * -1;
-				}else{
-					e = Negamax(i, depth - 2, beta * -1, alpha * -1, turn * -1) * -1;
-					if(e > alpha){
-						LMR_Re++;
-						e = Negamax(i, depth - 1, beta * -1, alpha * -1, turn * -1) * -1;
-					}
-				}
+				// }else{
+				// 	e = Negamax(i, depth - 2, beta * -1, alpha * -1, turn * -1) * -1;
+				// 	if(e > alpha){
+				// 		LMR_Re++;
+				// 		e = Negamax(i, depth - 1, beta * -1, alpha * -1, turn * -1) * -1;
+				// 	}
+				// }
 
 				hash = hash ^ hashChange;
 
@@ -323,13 +323,11 @@ class Engine{
 				}
 				if(e >= extreme){
 					extreme = e;
-					extremeT = e;
 					chosenMove = i;
 				}
 				alpha = fmax(alpha, e);
 
 				if(alpha >= beta){
-					extremeT = alpha;
 					extreme = mynan;
 					cut = 1;
 					break;
@@ -338,9 +336,9 @@ class Engine{
 
 			if(itDepth - depth < hashDepth){
 				if(transPos != transTable->end()){
-					TranspositionTable::UpdateTransPos(transPos, chosenMove, extremeT, itDepth + depth, cut);
+					TranspositionTable::UpdateTransPos(transPos, chosenMove, extreme, itDepth + depth, cut);
 				}else{
-					transTable->insert(chosenMove, board, hash, extremeT, prevMove % 9, itDepth + depth, movesMade + (itDepth - depth), cut);
+					transTable->insert(chosenMove, board, hash, extreme, prevMove % 9, itDepth + depth, movesMade + (itDepth - depth), cut);
 				}
 			}
 			return extreme;
@@ -414,6 +412,10 @@ class Engine{
 				bCount++;
 			}
 
+			int cw   = (player == X) ? ticTacEval->opcw : ticTacEval->plcw;
+			int sh_i = (player == X) ? ticTacEval->plw : ticTacEval->opw;
+			int sh_v = (player == X) ? ticTacEval->opb : ticTacEval->plb;
+
 			for(int i = minLim; i < maxLim; i++){	
 				if(mBoard[i / 9] != ND){
 					i += 8;
@@ -423,8 +425,6 @@ class Engine{
 				if(mv == prefMove){
 					continue;	
 				}
-				int sh = (player == X) ? 40 : 20;
-				int sh_i = (player == X) ? 2 : 22;
 
 				if(board[mv] == 0){
 					int iMod = mv % 9;
@@ -440,7 +440,7 @@ class Engine{
 							bCount++;
 							moves[lCount++] = mv;
 						}
-					}else	if(mBoard[iMod] == ND && ((mBoardFull[iMod] >> sh) & ticTacEval->BM_EVAL) != 3){
+					}else	if(((mBoardFull[iMod] >> cw) & ticTacEval->BM_EVAL) != 3){
 						//Normal move
 						moves[lCount++] = mv;
 					}else{
@@ -450,6 +450,20 @@ class Engine{
 				}
 			}
 			
+			// for(int i = bCount + 1; i < lCount; i++){
+			// 	int mv = moves[i];
+			// 	int mvVal = (mBoardFull[mv] >> (sh_v * mv % 9)) & ticTacEval->BM_EVAL;
+			// 	for(int j = i; j >= bCount; j--){
+			// 		int othMv = moves[j];
+			// 		int othVal = (mBoardFull[othMv] >> (sh_v * mv % 9)) & ticTacEval->BM_EVAL;
+			// 		if(mvVal > othVal){
+			// 			auto tmp = moves[i];
+			// 			moves[i] = moves[j];
+			// 			moves[j] = tmp;
+			// 		}
+			// 	}
+			// }
+
 			while(hCount > 81){
 				int i = moves[--hCount];
 				moves[lCount++] = i;

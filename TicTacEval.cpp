@@ -29,21 +29,34 @@ class TicTacEval{
 
 	int *plTmp;
 	int *opTmp;
+	int *plWin;
+	int *opWin;
 
 	public:
 		const uint64_t BM_FULL = 0xffffffffffffffff;
 		const uint64_t BM_EVAL = (BM_FULL & ((1 << 2) - 1));
+
+		const int plb = 2;
+		const int opb = 20;
+		const int plw = 38;
+		const int opw = 47;
+		const int plcw = 48;
+		const int opcw = 49;
+		const int shft = 2;
+
 
 		TicTacEval(){
 			map = new uint64_t[19683];
 			char* board = new char[9];
 			plTmp = new int[9];
 			opTmp = new int[9];
-			plPos = new int[9];
-			opPos = new int[9];
+			plWin = new int[9];
+			opWin = new int[9];
 			fill(board, 0);
 			delete(plTmp);
 			delete(opTmp);
+			delete(plWin);
+			delete(opWin);
 		}
 
 		inline uint64_t eval(char *board){
@@ -69,19 +82,19 @@ class TicTacEval{
 			if(m==9){
 				int v = ValidateSmall(board);
 				uint64_t ent = 0;
-				
-				int plMax = 0;
-				int opMax = 0;
-				
+				uint64_t plCan = 0;
+				uint64_t opCan = 0;
 				ent |= v;
 				for(int i = 0; i < 9; i++){
-					ent |= ((uint64_t) plTmp[i] << (2 * i + 2));	
-					ent |= (uint64_t) (uint64_t (((uint64_t) opTmp[i]) << (2 * i + 22)));	
-					plMax = std::max(plMax, plTmp[i]);
-					opMax = std::max(opMax, opTmp[i]);
+					ent |= ((uint64_t) std::min(plTmp[i],3)) << (shft * i + plb);	
+					ent |= ((uint64_t) std::min(opTmp[i],3)) << (shft * i + opb);	
+					ent |= ((uint64_t) plWin[i]) << (i + plw);	
+					ent |= ((uint64_t) opWin[i]) << (i + opw);	
+					plCan = std::max((uint64_t)plWin[i], plCan);
+					opCan = std::max((uint64_t)opWin[i], opCan);
 				} 
-				ent |= ((uint64_t) plMax << 20);	
-				ent |= ((uint64_t) opMax << 40);
+				ent |= plCan << plcw;
+				ent |= opCan << opcw;
 				
 				std::size_t hash = 0;
 				hash += hash_tts[(int)board[0]][0];
@@ -94,6 +107,7 @@ class TicTacEval{
 				hash += hash_tts[(int)board[7]][7];
 				hash += hash_tts[(int)board[8]][8];
 
+				// printf("%d\n", ent & BM_EVAL);
 				// printf("%d\n", v);
 				// printf("Pl: ");
 				// for(int i = 0; i < 9; i++){
@@ -133,6 +147,8 @@ class TicTacEval{
 			for(int i = 0; i < 9; i++){
 				plTmp[i] = 0;
 				opTmp[i] = 0;
+				opWin[i] = 0;
+				plWin[i] = 0;
 			}
 
 			//Horizontal
@@ -200,15 +216,15 @@ class TicTacEval{
 
 			if(drawn == 0){
 				for(int i = 0; i < 3; i++){
-					hDirection(b, plTmp, X, i * 3, 1); //Horizontal
-					hDirection(b, plTmp, X, i, 3); //Vertical
-					hDirection(b, opTmp, O, i * 3, 1); //Horizontal
-					hDirection(b, opTmp, O, i, 3); //Vertical
+					hDirection(b, plTmp, plWin, X, i * 3, 1); //Horizontal
+					hDirection(b, plTmp, plWin, X, i, 3); //Vertical
+					hDirection(b, opTmp, opWin, O, i * 3, 1); //Horizontal
+					hDirection(b, opTmp, opWin, O, i, 3); //Vertical
 				}
-				hDirection(b, plTmp, X, 0, 4);
-				hDirection(b, plTmp, X, 2, 2);
-				hDirection(b, opTmp, O, 0, 4);
-				hDirection(b, opTmp, O, 2, 2);
+				hDirection(b, plTmp, plWin, X, 0, 4);
+				hDirection(b, plTmp, plWin, X, 2, 2);
+				hDirection(b, opTmp, opWin, O, 0, 4);
+				hDirection(b, opTmp, opWin, O, 2, 2);
 				return ND;
 			}
 
@@ -216,37 +232,28 @@ class TicTacEval{
 		}
 
 	public: 
-		void hDirection(char *lmBoard, int* tmp, int o, int base, int step){
-			int m = 0;
+		void hDirection(char *lmBoard, int* tmp, int* win, int o, int base, int step){
+			int wpos = 0;
 			int c = 0;
-
 			for(int j = 0; j < 3; j++){
 				int v = lmBoard[base + j * step];
 				
-				if(v == 4){ //hmm
-					c=-1;
-					break;
-				}
-
-				if(v != 0 && v != o){
+				if((v != 0 && v != o) || v == 4){
 					//No possibilities
-					c=-1;
-					break;
-				}if(v == 0){
-					m += 1 << j;
-				}else{
+					return;
+				}
+				if(v == 0){
 					c++;
+					wpos = j;
 				}
 			}
+			
+			if(c == 1){
+				win[base + wpos * step] = 1;
+			}
 
-			if(c >= 0){
-				for(int j = 0; j < 3; j++){
-					if((m & (1 << j)) != 0){
-						int ind = base + j * step;
-						int oldVal = tmp[base + j * step];
-						tmp[ind] = std::max(oldVal, c + 1);
-					}
-				}
+			for(int j = 0; j < 3; j++){
+				tmp[base + j * step] += 1;		
 			}
 		}
 };
