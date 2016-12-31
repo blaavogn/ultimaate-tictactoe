@@ -7,6 +7,7 @@
 #include "TicTacEval.cpp"
 #include "MMEval.cpp"
 #include "Printer.cpp"
+#include "Mover.cpp"
 
 class Engine{
 	float mynan = 0.0/0.0 * -1;
@@ -20,6 +21,7 @@ class Engine{
 	char *mPlaceWon;
 	uint64_t *mBoardFull;
 	int *movePool;
+	int *movePoolQ;
 	std::size_t* boardHash; 
 	int gl_PrevMove;
 	char pl, op;
@@ -30,12 +32,13 @@ class Engine{
 	int transHitFull = 0;
 	int transHit = 0;
 	int LMR_Re = 0;
-	int hashDepth = 6;
+	int hashDepth = 10;
 	int ponder = 0;
 	MMEval* evaluater;
 	float gl_Eval = 0.0;
 	TranspositionTable* transTable;
 	TicTacEval* ticTacEval;
+	Mover* mover;
 	HashBoard* hashKey;
 	Printer* printer;
 
@@ -48,17 +51,19 @@ class Engine{
 			mPlaceWon 	= new char[9];
 			mBoardFull 	= new uint64_t[9];
 			boardHash   = new std::size_t[9];
-			movePool 	  = new int[84 * 81];
+			movePool 	  = new int[82 * 81];
+			movePoolQ 	= new int[82 * 30];
 			transTable  = new TranspositionTable();
 			hashKey 		= new HashBoard();
 			ticTacEval  = new TicTacEval();
 			evaluater   = new MMEval();
 			printer     = new Printer();
+			randMoves   = new int[81];
+			mover 		  = new Mover(board, mBoardFull, mBoard, randMoves);
 			hashKey->board = board;
 			gl_PrevMove = -1;
 			ponder  	  = 1;
 			movesMade   = 0;
-			randMoves = new int[81];
 			
 			srand( time( NULL ) );
 
@@ -138,11 +143,9 @@ class Engine{
 			}	
 				
 			int depth;
-			for(depth = 9; depth < 10; depth++){
+			for(depth = 8; depth < 9; depth++){
 				itDepth = depth;
-
 				gl_Eval = Negamax(gl_PrevMove, depth, -INFINITY, INFINITY, 1);
-				// gl_Eval = MTDF(gl_Eval, gl_PrevMove, depth);
 				
 				gettimeofday(&tp, NULL);
 				long int ms2 = tp.tv_sec * 1000 + tp.tv_usec / 1000;
@@ -150,9 +153,9 @@ class Engine{
 				fprintf(stderr, "%d - %f - %f\n", depth, gl_Eval, sec);
 				if(time < 5000 && sec > 0.200)
 					break;
-				if(time < 2500 && sec > 0.110)
+				if(time < 2500 && sec > 0.100)
 					break;
-				if(sec > 0.350)
+				if(sec > 0.300)
 					break;
 			}
 	
@@ -172,34 +175,9 @@ class Engine{
 			fprintf( stderr, "Nodes: %d LMR_Re: %d\n", mNodes, LMR_Re);
 			fprintf( stderr, "Best move: %d, %f\n", chosenMove, gl_Eval);
 
-			// fprintf(stderr, "PV: \n");
-			// HashBoard* pvKey = new HashBoard();
-			// pvKey->board = new char[81];
-			// pvKey->hash = hash;
-			// for(int i = 0; i < 81; i++){
-			// 	pvKey->board[i] = board[i];				
-			// }
-
-			// int tok = pl;
-
-			// while(transPos != transTable->end()){
-			// 	int move = transPos->second;
-			// 	fprintf(stderr, "(%d,%d),", move / 9, move % 9);
-			// 	pvKey->board[(int)move] = tok;
-			// 	std::size_t hashChange = ((tok == X) ? hash_pl[move] : hash_op[move]);
-			// 	pvKey->hash = pvKey->hash ^ hashChange;
-			// 	pvKey->prevMove = move % 9;
-			// 	tok = (tok == pl) ? op : pl;
-			// 	transPos = transTable->find(pvKey);
-			// }
-			// fprintf(stderr, "\n");
-			// printer->Print(pvKey->board);
-			// //delete(pvKey);
-			// fprintf(stderr, "\n");
-			
 			if(chosenMove == -1){
-				int k = 0;
-				getMoves(movePool, gl_PrevMove, pl, &k, -1);
+				int k = 0, kk;
+				mover->getMoves(movePool, gl_PrevMove, pl, &k, &kk, -1);
 				chosenMove = movePool[0];
 				fprintf(stderr, "Choosing loose %d\n", chosenMove);
 			}
@@ -208,7 +186,7 @@ class Engine{
 			int micro = chosenMove % 9;
 			int x = (macro % 3) * 3 + micro % 3;
 			int y = (macro / 3) * 3 + micro / 3;
-
+		
 			fprintf( stderr, "%d, %d\n", x,y);
 			ponder = 0;
 			return std::make_pair(x, y);	
@@ -227,23 +205,6 @@ class Engine{
 		}
 
 	private:
-		float MTDF(float f, int prevMove, int depth){
-      float g = 0.0;
-      float upperBound = INFINITY;
-      float lowerBound = -INFINITY;
-      while (lowerBound < upperBound){
-    		float beta = (g > lowerBound+1) ? g : lowerBound+1;
-    		g = Negamax(prevMove, depth, beta-1, beta, 1);
-  		 	if (g < beta){
-          upperBound = g;
-  		 	}
-       	else{
-          lowerBound = g;
-       	}
-      }
-     return g;
-    }
-
 		float Negamax(int prevMove, int depth, float alpha, float beta, int turn){
 			mNodes++;
 			int token = (turn == 1) ? pl : op;
@@ -252,8 +213,8 @@ class Engine{
 			hashKey->prevMove = prevMove % 9;
 			hashKey->hash = hash;
 			auto transPos = transTable->find(hashKey);
-			char prefMove = -1;
 			
+			char prefMove = -1;
 			if(transPos != transTable->end()) {
 				prefMove = transPos->second;
 				transHit++;
@@ -266,61 +227,46 @@ class Engine{
 			//Teminate position?
 			char v = ValidateMacroDelta(prevMove / 9);
 
-			int qMoves = 0;
+			int qMoves = 0, qLow = 0;
 			int* moves = &movePool[82 * (80 - (depth <= 0 ? 0 : depth))];
-			
-			getMoves(moves, prevMove, token, &qMoves, prefMove);
+			mover->getMoves(moves, prevMove, token, &qMoves, &qLow, prefMove);
 
 			if(v != ND && v != DR){
 				return -INFINITY;
-			}
-			else if(depth <= 0){
+			}else if(depth <= 0){
 				if(qMoves > 0){
-					return qSearch(prevMove, turn, 78, alpha, beta);
+					return qSearch(prevMove, turn, 0, alpha, beta);
 				}
 				return evaluater->H(board, mBoardFull, pl, ticTacEval) * turn;
 			}
 			
-			
 			float extreme = -INFINITY;
-			char cut = 0;
+
+			char isCut = 0;
+		
 			int chosenMove = -1;
 			for(int c = 0, i = -1;; ){
 				i = moves[c++];
-				if( i == 999){
+				if(i == 999){
 					break;
 				}
-				int macroIndex = i / 9;
-				board[i] = token;
-				uint64_t oldMBoardValue = mBoardFull[macroIndex];
-				boardHash[macroIndex] += hash_tts[token][i % 9];
-				uint64_t newMBoardValue = ticTacEval->evalPure(boardHash[macroIndex]);
-				mBoard[macroIndex] = newMBoardValue & ticTacEval->BM_EVAL;
-				mBoardFull[macroIndex] = newMBoardValue;
-				std::size_t hashChange = (token == X) ? hash_pl[i] : hash_op[i];
-				hash = hash ^ hashChange;
+
+				std::size_t change = 0;
+				auto hashChanges = ApplyMove(i, token, &change);
 
 				float e;
-				// if(c < 3){
-					e = Negamax(i, depth - 1, beta * -1, alpha * -1, turn * -1) * -1;
-				// }else{
-				// 	e = Negamax(i, depth - 2, beta * -1, alpha * -1, turn * -1) * -1;
-				// 	if(e > alpha){
-				// 		LMR_Re++;
-				// 		e = Negamax(i, depth - 1, beta * -1, alpha * -1, turn * -1) * -1;
-				// 	}
-				// }
-
-				hash = hash ^ hashChange;
-
-				mBoardFull[macroIndex] = oldMBoardValue;
-				mBoard[macroIndex] = oldMBoardValue & ticTacEval->BM_EVAL;
-				boardHash[macroIndex] -= hash_tts[token][i % 9];
-
-				board[i] = 0;
-				if(isnan(e)){
-					continue;
+				if(c < 3){
+					e = -Negamax(i, depth - 1, -beta, -alpha, -turn);
+				}else{
+				 e = -Negamax(i, depth - 2, -beta, -alpha, -turn);
+					if(e > alpha){
+						LMR_Re++;
+						e = -Negamax(i, depth - 1, -beta, -alpha, -turn);
+					}
 				}
+
+				RemoveMove(i, token, hashChanges, change);
+
 				if(e >= extreme){
 					extreme = e;
 					chosenMove = i;
@@ -329,16 +275,16 @@ class Engine{
 
 				if(alpha >= beta){
 					extreme = mynan;
-					cut = 1;
+					isCut = 1;
 					break;
 				}
 			}
 
 			if(itDepth - depth < hashDepth){
 				if(transPos != transTable->end()){
-					TranspositionTable::UpdateTransPos(transPos, chosenMove, extreme, itDepth + depth, cut);
+					TranspositionTable::UpdateTransPos(transPos, chosenMove, extreme, itDepth + depth, isCut);
 				}else{
-					transTable->insert(chosenMove, board, hash, extreme, prevMove % 9, itDepth + depth, movesMade + (itDepth - depth), cut);
+					transTable->insert(chosenMove, board, hash, extreme, prevMove % 9, itDepth + depth, movesMade + (itDepth - depth), isCut);
 				}
 			}
 			return extreme;
@@ -346,8 +292,7 @@ class Engine{
 
 		float qSearch(int prevMove, int turn, int depth, float alpha, float beta){
 			mNodes++;
-
-			int token = (turn == 1) ? pl : op;
+			int token = (turn == 1) ? pl : op;	
 				
 			//Teminate position?
 			char v = ValidateMacroDelta(prevMove / 9);
@@ -355,124 +300,62 @@ class Engine{
 				return -INFINITY;
 			}
 
-			int qMoves;
-			int* moves = &movePool[82 * (80 - depth)];
-			getMoves(moves, prevMove, token, &qMoves, -1);
+			int qMoves = 0, qLow = 0;
+			
+			int* moves = movePoolQ + (28 - depth) * 81;
+			
+			mover->getMoves(moves, prevMove, token, &qMoves, &qLow, -1);
 
 			if(qMoves == 0){
-				return evaluater->H(board, mBoardFull, pl, ticTacEval) * turn * -1;
+				return evaluater->H(board, mBoardFull, pl, ticTacEval) * turn;
 			}
 
 			float extreme = -INFINITY;
-			for(int i = 0, c = 0; c < qMoves && i != 999; ){
+			for(int i = 0, c = qLow; c < qMoves + qLow && i != 999; ){
 				i = moves[c++];
-				int macroIndex = i / 9;
-				board[i] = token;
-				uint64_t oldMBoardValue = mBoardFull[macroIndex];
-				boardHash[macroIndex] += hash_tts[token][i % 9];
-				uint64_t newMBoardValue = ticTacEval->evalPure(boardHash[macroIndex]);
-				mBoard[macroIndex] = newMBoardValue & ticTacEval->BM_EVAL;
-				mBoardFull[macroIndex] = newMBoardValue;
-				float	e = qSearch(i, turn * -1, depth - 1, beta * -1, alpha * -1) * -1;
-
-				mBoardFull[macroIndex] = oldMBoardValue;
-				mBoard[macroIndex] = oldMBoardValue & ticTacEval->BM_EVAL;
-				boardHash[macroIndex] -= hash_tts[token][i % 9];
-
-				board[i] = 0;				
-				
-				if(isnan(e)){
-					continue;
+				if(i == 999){
+					return 0.0;
 				}
+
+				board[i] = token;	
+				float	e = -qSearch(i, -turn, depth + 1, -beta, -alpha);
+				board[i] = 0;	
+
 				extreme = fmax(extreme, e);
 				alpha = fmax(alpha, e);
 
 				if(alpha >= beta){
-					extreme = mynan;
 					break;
 				}
 			}
 			return extreme;
 		}
-		
-		void getMoves(int* moves, int prevMove, int player, int *qMoves, int prefMove){
-			int macroIndex = prevMove % 9;
-			int minLim = 0;
-			int maxLim = 81;
 
-			if(prevMove > -1 && mBoard[macroIndex] == ND){ //Strict macro placement
-				minLim = macroIndex * 9;
-				maxLim = minLim + 9;
-			}
-
-			int bCount = 0, lCount = 0, hCount = 81, qCount = 0;
-			if(prefMove != -1){
-				moves[0] = prefMove;
-				lCount++;
-				bCount++;
-			}
-
-			int cw   = (player == X) ? ticTacEval->opcw : ticTacEval->plcw;
-			int sh_i = (player == X) ? ticTacEval->plw : ticTacEval->opw;
-			int sh_v = (player == X) ? ticTacEval->opb : ticTacEval->plb;
-
-			for(int i = minLim; i < maxLim; i++){	
-				if(mBoard[i / 9] != ND){
-					i += 8;
-					continue; //Skipping macros that is done
-				}
-				int mv = randMoves[i];
-				if(mv == prefMove){
-					continue;	
-				}
-
-				if(board[mv] == 0){
-					int iMod = mv % 9;
-
-					if(((mBoardFull[mv / 9] >> (sh_i + 2 * iMod)) & ticTacEval->BM_EVAL) == 3){
-						qCount++; //Qsearch move
-					
-						if(lCount > bCount){
-							int tmp = moves[bCount];
-							moves[bCount++] = mv;
-							moves[lCount++] = tmp;
-						}else{
-							bCount++;
-							moves[lCount++] = mv;
-						}
-					}else	if(((mBoardFull[iMod] >> cw) & ticTacEval->BM_EVAL) != 3){
-						//Normal move
-						moves[lCount++] = mv;
-					}else{
-						//Bad move
-						moves[hCount++] = mv;
-					}
-				}
-			}
+		std::pair<uint64_t, std::size_t> ApplyMove(int move, int token, std::size_t *change){
+			int macroIndex = move / 9;
+			board[move] = token;
 			
-			// for(int i = bCount + 1; i < lCount; i++){
-			// 	int mv = moves[i];
-			// 	int mvVal = (mBoardFull[mv] >> (sh_v * mv % 9)) & ticTacEval->BM_EVAL;
-			// 	for(int j = i; j >= bCount; j--){
-			// 		int othMv = moves[j];
-			// 		int othVal = (mBoardFull[othMv] >> (sh_v * mv % 9)) & ticTacEval->BM_EVAL;
-			// 		if(mvVal > othVal){
-			// 			auto tmp = moves[i];
-			// 			moves[i] = moves[j];
-			// 			moves[j] = tmp;
-			// 		}
-			// 	}
-			// }
-
-			while(hCount > 81){
-				int i = moves[--hCount];
-				moves[lCount++] = i;
-			}
-
-			*qMoves = qCount;
-			moves[lCount] = 999;					
+			uint64_t oldMBoardValue = mBoardFull[macroIndex];
+			boardHash[macroIndex] += hash_tts[token][move % 9];
+			uint64_t newMBoardValue = ticTacEval->evalPure(boardHash[macroIndex]);
+			mBoard[macroIndex] = newMBoardValue & ticTacEval->BM_EVAL;
+			mBoardFull[macroIndex] = newMBoardValue;
+			std::size_t hashChange = (token == X) ? hash_pl[move] : hash_op[move];
+			hash = hash ^ hashChange;
+			*change = hashChange;
+			return std::make_pair(oldMBoardValue, hashChange);	
 		}
 
+		void RemoveMove(int move, int token, std::pair<uint64_t, std::size_t> changes, std::size_t change){
+			int macroIndex = move / 9;
+			mBoardFull[macroIndex] = changes.first;
+			mBoard[macroIndex] = changes.first & ticTacEval->BM_EVAL;
+			boardHash[macroIndex] -= hash_tts[token][move % 9];
+			
+			hash = hash ^ ((std::size_t)change);
+			board[move] = 0;
+		}
+	
 		char ValidateMacroDelta(int move){
 			if(checkDir(mBoard, move - move % 3, 1))
 				return (mBoard[move] == 1) ? X : O;

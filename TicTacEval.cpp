@@ -33,16 +33,16 @@ class TicTacEval{
 	int *opWin;
 
 	public:
-		const uint64_t BM_FULL = 0xffffffffffffffff;
-		const uint64_t BM_EVAL = (BM_FULL & ((1 << 2) - 1));
+		static const uint64_t BM_FULL = 0xffffffffffffffff;
+		static const uint64_t BM_EVAL = (BM_FULL & ((1 << 2) - 1));
 
-		const int plb = 2;
-		const int opb = 20;
-		const int plw = 38;
-		const int opw = 47;
-		const int plcw = 48;
-		const int opcw = 49;
-		const int shft = 2;
+		static const int plb = 2;
+		static const int opb = 20;
+		static const int plw = 38;
+		static const int opw = 47;
+		static const int plcw = 57;
+		static const int opcw = 58;
+		static const int shft = 2;
 
 
 		TicTacEval(){
@@ -52,7 +52,7 @@ class TicTacEval{
 			opTmp = new int[9];
 			plWin = new int[9];
 			opWin = new int[9];
-			fill(board, 0);
+			fill(board, 0, 1);
 			delete(plTmp);
 			delete(opTmp);
 			delete(plWin);
@@ -78,7 +78,7 @@ class TicTacEval{
 		}
 
 	private:
-		void fill(char* board, int m){
+		void fill(char* board, int m, int debug = 0){
 			if(m==9){
 				int v = ValidateSmall(board);
 				uint64_t ent = 0;
@@ -107,30 +107,41 @@ class TicTacEval{
 				hash += hash_tts[(int)board[7]][7];
 				hash += hash_tts[(int)board[8]][8];
 
-				// printf("%d\n", ent & BM_EVAL);
-				// printf("%d\n", v);
-				// printf("Pl: ");
-				// for(int i = 0; i < 9; i++){
-				// 	int plCon = ((ent >> (i * 2 + 2)) & BM_EVAL); 
-				// 	printf("%d, ",plCon);
-				// }
-				// int plCon = ((ent >> 20) & BM_EVAL); 
-				// printf("| %d ",plCon);
-				// printf("\n");
+				if(debug){
+					printf("%d\n", (int) (ent & BM_EVAL));
+					printf("Pl: ");
+					for(int i = 0; i < 9; i++){
+						int plCon = ((ent >> (i * shft + plb)) & BM_EVAL); 
+						printf("%d, ",plCon);
+					}
+					printf("\n");
 
-				// printf("Op: ");
-				// for(int i = 0; i < 9; i++){
-				// 	int opCon = ((ent >> (i * 2 + 22)) & BM_EVAL); 
-				// 	printf("%d, ",opCon);
-				// }
-				// int opCon = ((ent >> 40) & BM_EVAL); 
-				// printf("| %d ",opCon);
-				// printf("\n");
+					printf("Op: ");
+					for(int i = 0; i < 9; i++){
+						int opCon = ((ent >> (i * shft + opb)) & BM_EVAL); 
+						printf("%d, ",opCon);
+					}
+					printf("\n");
 
-				// for(int i = 0; i < 9; i++){
-				// 	printf("%d,",board[i]);
-				// }
-				// printf("\n\n");
+					printf("Pl Win: ");
+					for(int i = 0; i < 9; i++){
+						int plCon = ((ent >> (i + plw)) & 1); 
+						printf("%d, ",plCon);
+					}
+					printf("\n");
+
+					printf("Op WIN: ");
+					for(int i = 0; i < 9; i++){
+						int opCon = ((ent >> (i + opw)) & 1); 
+						printf("%d, ",opCon);
+					}
+					printf("\n");
+
+					for(int i = 0; i < 9; i++){
+						printf("%d,",board[i]);
+					}
+					printf("\n\n");
+				}
 
 				map[hash] = ent;
 			}else{

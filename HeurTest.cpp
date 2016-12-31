@@ -9,11 +9,15 @@ class HeurTest{
 	const int O = 2;
 	const int DR = 3;
 
+	int *moves;
+
 	Printer printer;
 	TicTacEval *ticTacEval;
 	MMEval *mmEval; 
+	
 	public:
 		HeurTest(std::vector<std::string> *inBoards){
+
 			mmEval = new MMEval();
 			ticTacEval = new TicTacEval();
 			int boardCounts = inBoards->size() * 2;
