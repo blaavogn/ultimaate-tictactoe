@@ -27,12 +27,12 @@ class MMEval{
 	const int DR = 3;
 
 	float H_POS_MACRO[9] = {
-		1.3, 1.0, 1.3,
-		1.0, 5.0, 1.0,
-		1.3, 1.0, 1.3};
+		2.0, 1.0, 2.0,
+		1.0, 4.0, 1.0,
+		2.0, 1.0, 2.0};
 
-	float H_EMP = 0.3;
-	float H_WON = 60;
+	float H_EMP = .3;
+	float H_WON = 100;
 	float h = 0;
 	public:
 		MMEval(){
@@ -50,18 +50,21 @@ class MMEval{
 				missingSumPl[i] = 0;
 				missingSumOp[i] = 0;
 				if(won[i] == ND){
-					for(int j = 0; j < 9; j++){
-						int plV = (b >> (ticTacEval->plb + ticTacEval->shft * j)) & ticTacEval->BM_EVAL;
-						int opV = (b >> (ticTacEval->opb + ticTacEval->shft * j)) & ticTacEval->BM_EVAL;
-						h += (plV - opV) * H_EMP * H_POS_MACRO[i];
-						missingSumPl[i] += plV;
-						missingSumOp[i] += opV;
-					}
+					int plV = (b >> (ticTacEval->plb)) & ticTacEval->BM_EVAL_LARGE;
+					int opV = (b >> (ticTacEval->opb)) & ticTacEval->BM_EVAL_LARGE;
+					h += (plV - opV) * H_EMP * H_POS_MACRO[i];
+					missingSumPl[i] = plV;
+					missingSumOp[i] = opV;
 				}
 			};
+			uint64_t macro = ticTacEval->eval(won);
+
+			int macroPlV = (macro >> (ticTacEval->plb)) & ticTacEval->BM_EVAL_LARGE;
+			int macroOpV = (macro >> (ticTacEval->opb)) & ticTacEval->BM_EVAL_LARGE;
+			h += (macroPlV - macroOpV) * 200;
 
 			for(int i = 0; i < 9; i++){								
-				if(won[i] == 1){
+				// if(won[i] == 1){
 					addDir(1, (i / 3) * 3, 1, 1, missingSumPl, missingSumOp); //Horizontal
 					addDir(1, i % 3, 3, 1, missingSumPl, missingSumOp); //Vertical
 					
@@ -70,8 +73,8 @@ class MMEval{
 					
 					if(i == 2 || i == 4 || i == 6)
 						addDir(1, 2, 2, 1, missingSumPl, missingSumOp); //Vertical
-				}
-				if(won[i] == 2){
+				// }
+				// if(won[i] == 2){
 					addDir(2, (i / 3) * 3, 1, -1, missingSumOp, missingSumPl); //Horizontal
 					addDir(2, i % 3, 3, -1, missingSumOp, missingSumPl); //Vertical
 					
@@ -80,7 +83,7 @@ class MMEval{
 					
 					if(i == 2 || i == 4 || i == 6)
 						addDir(2, 2, 2, -1, missingSumOp, missingSumPl); //Vertical
-				}
+				// }
 			}
 			
 			return h * (pl == X ? 1 : -1);
@@ -88,6 +91,7 @@ class MMEval{
 
 		void addDir(int pl, int base, int step, int hDir, char* plSum, char* opSum){
 			int c = 0;
+			int w = 0;
 			float lH = 1;
 			for(int i = 0; i < 3; i++){
 				int index = base + i * step;
@@ -96,18 +100,20 @@ class MMEval{
 				}
 				if(won[index] == 0){
 					c++;
+				}else{
+					w = 1;
 				}
 			}
 
 			for(int i = 0; i < 3; i++){
 				int index = base + i * step;
 				if(won[index] == pl){
-					lH *= H_WON * hDir * H_POS_MACRO[i];
+					lH *= 1 * hDir * H_POS_MACRO[i];
 				}else{
-					if(c == 2){
-						lH *= plSum[index] * hDir * .5 - opSum[index % 9] * hDir * -1 * .3;
+					if(c == 2 || w == 0){
+						lH *= plSum[index] * hDir * .5 - opSum[index] * hDir * .5;
 					}else{
-						lH *= plSum[index] * hDir * 2;
+						lH *= plSum[index] * hDir * 100  - opSum[index] * hDir * .5;
 					}
 				}
 			}

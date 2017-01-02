@@ -35,6 +35,7 @@ class TicTacEval{
 	public:
 		static const uint64_t BM_FULL = 0xffffffffffffffff;
 		static const uint64_t BM_EVAL = (BM_FULL & ((1 << 2) - 1));
+		static const uint64_t BM_EVAL_LARGE = (BM_FULL & ((1 << 17) - 1));
 
 		static const int plb = 2;
 		static const int opb = 20;
@@ -84,15 +85,19 @@ class TicTacEval{
 				uint64_t ent = 0;
 				uint64_t plCan = 0;
 				uint64_t opCan = 0;
+				uint64_t plSum = 0;
+				uint64_t opSum = 0;
 				ent |= v;
 				for(int i = 0; i < 9; i++){
-					ent |= ((uint64_t) std::min(plTmp[i],3)) << (shft * i + plb);	
-					ent |= ((uint64_t) std::min(opTmp[i],3)) << (shft * i + opb);	
+					plSum += plTmp[i] + plTmp[i] * (board[i] != 0 ? .2 : 0);
+					opSum += opTmp[i] + opTmp[i] * (board[i] != 0 ? .2 : 0);
 					ent |= ((uint64_t) plWin[i]) << (i + plw);	
 					ent |= ((uint64_t) opWin[i]) << (i + opw);	
 					plCan = std::max((uint64_t)plWin[i], plCan);
 					opCan = std::max((uint64_t)opWin[i], opCan);
 				} 
+				ent |= ((uint64_t) plSum) << (plb);	
+				ent |= ((uint64_t) opSum) << (opb);	
 				ent |= plCan << plcw;
 				ent |= opCan << opcw;
 				
@@ -110,17 +115,13 @@ class TicTacEval{
 				if(debug){
 					printf("%d\n", (int) (ent & BM_EVAL));
 					printf("Pl: ");
-					for(int i = 0; i < 9; i++){
-						int plCon = ((ent >> (i * shft + plb)) & BM_EVAL); 
-						printf("%d, ",plCon);
-					}
+					int plCon = ((ent >> (plb)) & BM_EVAL_LARGE); 
+					printf("%d, ",plCon);
 					printf("\n");
 
 					printf("Op: ");
-					for(int i = 0; i < 9; i++){
-						int opCon = ((ent >> (i * shft + opb)) & BM_EVAL); 
-						printf("%d, ",opCon);
-					}
+					int opCon = ((ent >> (opb)) & BM_EVAL_LARGE); 
+					printf("%d, ",opCon);				
 					printf("\n");
 
 					printf("Pl Win: ");

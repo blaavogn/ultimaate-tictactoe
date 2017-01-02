@@ -1,5 +1,5 @@
 bot :
-	g++-4.9 -std=c++11 -Wall -O2 -o bin/ch15 starter.cpp
+	g++-4.9 -std=c++11 -Wall -O2 -o bin/ch16 starter.cpp
 
 human :
 	g++-4.9 -std=c++11 -Wall -O2 -o bin/hum Human.cpp
@@ -8,7 +8,7 @@ heur :
 	g++-4.9 -std=c++11 -Wall -O2 -o bin/heur HeurTest.cpp
 
 debug : 
-	g++-4.9 -Wall -std=c++1y -g Human.cpp -O0 -v -da -Q -o bin/human
+	g++-4.9 -Wall -std=c++1y -g Human.cpp -O0 -v -da -Q -o bin/hum
 
 moveTest:
 	g++ -Wall -std=c++1y -O2 MoveTest.cpp -o  bin/moveTest

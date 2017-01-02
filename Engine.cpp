@@ -74,15 +74,15 @@ class Engine{
 			for(int i = 0; i < 81; i++){
 				board[i] = 0;
 				randMoves[i] = i;
-				if(i % 9 == 8){
+				if(i % 9 == 7){
 					randMoves[i] = i - 4;
 					randMoves[i - 4] = i;
 				}
 			}
 
 			for(int i = 0; i < 9; i++){
-				for(int j = 0; j < 8; j++){
-					int in = rand() % (8 - j) + j;
+				for(int j = 0; j < 7; j++){
+					int in = rand() % (7 - j) + j;
 					int mv = randMoves[i * 9 + in];
 					randMoves[i * 9 + in] = randMoves[i * 9 + j]; 						
 					randMoves[i * 9 + j] = mv; 						
