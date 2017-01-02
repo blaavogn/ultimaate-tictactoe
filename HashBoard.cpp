@@ -33,7 +33,7 @@ class HashBoard{
 		char itDepth;
 		char movesMade;
 		char cut;
-		float eval;
+		std::pair<float,int> eval;
 		std::size_t hash; //This probably looks weird, but it is because an incremental hash is calculated
 		//It is should be way more efficient than recalculating it every time
 	

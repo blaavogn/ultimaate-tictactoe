@@ -51,7 +51,7 @@ class MoveTest{
 				fprintf(stderr, "\n");
 				test(-1 , -1);
 				fprintf(stderr, "\n");
-				test(4 ,40);
+				test(3 ,40);
 				fprintf(stderr, "\n");
 				test(55, 13);
 				fprintf(stderr, "\n");

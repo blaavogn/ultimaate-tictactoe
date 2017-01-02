@@ -28,7 +28,7 @@ class MMEval{
 
 	float H_POS_MACRO[9] = {
 		1.3, 1.0, 1.3,
-		1.0, 2.0, 1.0,
+		1.0, 5.0, 1.0,
 		1.3, 1.0, 1.3};
 
 	float H_EMP = 0.3;
@@ -88,6 +88,7 @@ class MMEval{
 
 		void addDir(int pl, int base, int step, int hDir, char* plSum, char* opSum){
 			int c = 0;
+			float lH = 1;
 			for(int i = 0; i < 3; i++){
 				int index = base + i * step;
 				if(won[index] != pl && won[index] != 0){
@@ -101,14 +102,15 @@ class MMEval{
 			for(int i = 0; i < 3; i++){
 				int index = base + i * step;
 				if(won[index] == pl){
-					h += H_WON * hDir * H_POS_MACRO[i];
+					lH *= H_WON * hDir * H_POS_MACRO[i];
 				}else{
 					if(c == 2){
-						h += plSum[index] * hDir * .5 - opSum[index % 9] * hDir -1 * .3;
+						lH *= plSum[index] * hDir * .5 - opSum[index % 9] * hDir * -1 * .3;
 					}else{
-						h += plSum[index] * hDir * 7;
+						lH *= plSum[index] * hDir * 2;
 					}
 				}
 			}
+			h += lH;
 		}
 };
