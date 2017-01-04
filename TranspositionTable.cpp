@@ -14,10 +14,10 @@ class TranspositionTable{
 		}
 
 		~TranspositionTable(){
-			delete(map);
+			// delete(map);
 		}
 
-		void insert(int chosenMove, char* board, std::size_t hash, std::pair<float,int> val, int prevMove, int itDepth, int movesMade, char cut){
+		void insert(int chosenMove, char* board, std::size_t hash, float val, int prevMove, int itDepth, int movesMade, char cut){
 			HashBoard* b = new HashBoard();
 			b->board = new char[81];
 			for(int i = 0; i < 81; i++){
@@ -32,7 +32,7 @@ class TranspositionTable{
 			map->insert(std::make_pair(b, chosenMove));
 		}
 
-		static void UpdateTransPos(std::unordered_map<HashBoard*,char, HashBoardHash, HashBoardEqual>::iterator pos, int bestMove, std::pair<float,int> val, int itDepth, char cut){
+		static void UpdateTransPos(std::unordered_map<HashBoard*,char, HashBoardHash, HashBoardEqual>::iterator pos, int bestMove, float val, int itDepth, char cut){
 			pos->second = bestMove;
 			pos->first->itDepth = itDepth;
 			pos->first->eval = val;
