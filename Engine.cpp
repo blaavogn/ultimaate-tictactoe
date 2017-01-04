@@ -150,13 +150,13 @@ class Engine{
 				long int ms2 = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 				sec = ((float) (ms2-ms) / 1000.0);
 				fprintf(stderr, "%d - %f - %f - %d\n", depth, eval, sec, mNodes);
-				if(time < 7500 && sec > 0.350)
+				if(time < 7500 && sec > 0.250)
 					break;
-				if(time < 5000 && sec > 0.250)
+				if(time < 5000 && sec > 0.150)
 					break;
-				if(time < 2500 && sec > 0.150)
+				if(time < 2500 && sec > 0.100)
 					break;
-				if(sec > 0.100)
+				if(sec > 0.450)
 					break;
 			}
 	
@@ -263,16 +263,17 @@ class Engine{
 			int qMoves = 0, qLow = 0;
 			int* moves = &movePool[82 * (80 - (depth <= 0 ? 0 : depth))];
 			mover->getMoves(moves, prevMove, token, &qMoves, &qLow, prefMove);
-			if(moves[0] == 999){
-				return 0.0;
-			}
 			if(v != ND && v != DR){
 				return CONST_WON;
 			}else if(depth <= 0){
-				// if(qMoves > 0){
-				// 	// return qSearch(prevMove, turn, 0, alpha, beta);
-				// }
+				if(qMoves > 0){
+					return qSearch(prevMove, turn, 0, alpha, beta);
+				}
 				return evaluater->H(board, mBoardFull, pl, ticTacEval) * turn;
+			}
+
+			if(moves[0] == 999){
+				return 0.0;
 			}
 			
 			float extreme = -INFINITY;

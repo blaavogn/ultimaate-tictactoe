@@ -24,7 +24,7 @@ class MMEval{
 				h += toH(l_won) * H_WON;
 			}
 			
-			uint64_t macroEvalPl = ticTacEval->eval(won, 2);
+			uint64_t macroEvalPl = ticTacEval->evalPl(won, 2);
 			uint64_t macroEvalOp = ticTacEval->evalPl(won, 1);
 
 			for(int i = 0; i < 9; i++){
