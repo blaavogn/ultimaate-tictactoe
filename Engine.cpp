@@ -76,15 +76,15 @@ class Engine{
 			for(int i = 0; i < 81; i++){
 				board[i] = 0;
 				randMoves[i] = i;
-				if(i % 9 == 7){
+				if(i % 9 == 8){
 					randMoves[i] = i - 4;
 					randMoves[i - 4] = i;
 				}
 			}
 
 			for(int i = 0; i < 9; i++){
-				for(int j = 0; j < 7; j++){
-					int in = rand() % (7 - j) + j;
+				for(int j = 0; j < 8; j++){
+					int in = rand() % (8 - j) + j;
 					int mv = randMoves[i * 9 + in];
 					randMoves[i * 9 + in] = randMoves[i * 9 + j]; 						
 					randMoves[i * 9 + j] = mv; 						
@@ -155,7 +155,7 @@ class Engine{
 					break;
 				if(time < 2500 && sec > 0.100)
 					break;
-				if(sec > 0.050)
+				if(sec > 0.010)
 					break;
 			}
 		
@@ -227,7 +227,7 @@ class Engine{
 			if(transPos != transTable->end()) {		
 				prefMove = transPos->second->bestMove;
 				transHit++;
-				if(transPos->second->valDepth == itDepth + depth && transPos->second->cut == 0){
+				if(transPos->second->valDepth == itDepth + depth){
 					transHitFull++;
 					return transPos->second->eval;
 				}
