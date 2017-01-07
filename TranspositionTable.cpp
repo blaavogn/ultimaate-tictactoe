@@ -4,46 +4,47 @@
 #include <cstring>
 #include "HashBoard.cpp"
 
+typedef std::unordered_map <HashKey*, HashBoard*, HashKeyHash, HashKeyEqual> TransMap;
+
 class TranspositionTable{
- 	std::unordered_map <HashBoard*, char, HashBoardHash, HashBoardEqual> *map;
+ 	TransMap *map;
 	public:
 		TranspositionTable(int initSize = 524287){
-			map = new std::unordered_map 
-								<HashBoard*, char, HashBoardHash, HashBoardEqual>
-								(initSize,HashBoardHash(),HashBoardEqual());
+			map = new TransMap(initSize, HashKeyHash(), HashKeyEqual());
 		}
 
 		~TranspositionTable(){
 			// delete(map);
 		}
 
-		void insert(int chosenMove, char* board, std::size_t hash, float val, int prevMove, int itDepth, int movesMade, char cut){
-			HashBoard* b = new HashBoard();
-			b->board = new char[81];
-			for(int i = 0; i < 81; i++){
-				b->board[i] = board[i];
-			}
-			b->hash = hash;
+		void insert(int chosenMove, uint64_t hash, float val, int itDepth, int movesMade, char cut, char *board, int prevMove){
+			HashBoard *b = new HashBoard();
 			b->eval = val;
-			b->prevMove = prevMove % 9;
 			b->itDepth = itDepth;
 			b->cut = cut;
 			b->movesMade = movesMade;
-			map->insert(std::make_pair(b, chosenMove));
+			b->bestMove = chosenMove;
+			HashKey *k = new HashKey();
+			k->hash = hash;
+			k->prevMove = prevMove;
+			for(int i = 0; i < 81; i++)
+				k->board[i] = board[i];
+
+			map->insert(std::make_pair(k, b));
 		}
 
-		static void UpdateTransPos(std::unordered_map<HashBoard*,char, HashBoardHash, HashBoardEqual>::iterator pos, int bestMove, float val, int itDepth, char cut){
-			pos->second = bestMove;
-			pos->first->itDepth = itDepth;
-			pos->first->eval = val;
-			pos->first->cut = cut;
+		static void UpdateTransPos(TransMap::iterator pos, int bestMove, float val, int itDepth, char cut){
+			pos->second->bestMove = bestMove;
+			pos->second->itDepth = itDepth;
+			pos->second->eval = val;
+			pos->second->cut = cut;
 		}
 
-		std::unordered_map<HashBoard*,char, HashBoardHash, HashBoardEqual>::iterator find(HashBoard *key){
+		TransMap::iterator find(HashKey* key){
 			return map->find(key);
 		}
 
-		std::unordered_map<HashBoard*,char, HashBoardHash, HashBoardEqual>::iterator end(){
+		TransMap::iterator end(){
 			return map->end();
 		}
 
@@ -53,10 +54,10 @@ class TranspositionTable{
 
 		void cleanUp(int minMovesMade){
 			for (auto it = map->begin(); it != map->end();){
-				if(it->first->movesMade < minMovesMade){
+				if(it->second->movesMade < minMovesMade){
 					auto oIt = it;
 					it = map->erase(it);
-					delete(oIt->first);
+					delete(oIt->second);
 				}else{
 					++it;
 				}

@@ -75,16 +75,20 @@ class TicTacEval{
 		}
 
 		inline uint64_t evalPl(char *board, int pl){
+			const std::size_t *l_hash_tts[4] = {
+				hash_tt_no,hash_tt_pl,hash_tt_op, hash_tts[pl]
+			};
+
 			std::size_t hash = 0;
-			hash += hash_tts[((int)board[0] == DR) ? pl : (int)board[0]][0];
-			hash += hash_tts[((int)board[1] == DR) ? pl : (int)board[1]][1];
-			hash += hash_tts[((int)board[2] == DR) ? pl : (int)board[2]][2];
-			hash += hash_tts[((int)board[3] == DR) ? pl : (int)board[3]][3];
-			hash += hash_tts[((int)board[4] == DR) ? pl : (int)board[4]][4];
-			hash += hash_tts[((int)board[5] == DR) ? pl : (int)board[5]][5];
-			hash += hash_tts[((int)board[6] == DR) ? pl : (int)board[6]][6];
-			hash += hash_tts[((int)board[7] == DR) ? pl : (int)board[7]][7];
-			hash += hash_tts[((int)board[8] == DR) ? pl : (int)board[8]][8];
+			hash += l_hash_tts[(int)board[0]][0];
+			hash += l_hash_tts[(int)board[1]][1];
+			hash += l_hash_tts[(int)board[2]][2];
+			hash += l_hash_tts[(int)board[3]][3];
+			hash += l_hash_tts[(int)board[4]][4];
+			hash += l_hash_tts[(int)board[5]][5];
+			hash += l_hash_tts[(int)board[6]][6];
+			hash += l_hash_tts[(int)board[7]][7];
+			hash += l_hash_tts[(int)board[8]][8];
 			return map[hash];
 		}
 

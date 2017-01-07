@@ -27,18 +27,19 @@ class Engine{
 	char pl, op;
 	int lMove, mNodes;
 	int movesMade;
-	std::size_t hash = 0;
+	uint64_t hash = 0;
 	int itDepth = 0;
 	int transHitFull = 0;
 	int transHit = 0;
 	int LMR_Re = 0;
 	int hashDepth = 9;
 	int ponder = 0;
+
 	MMEval* evaluater;
 	TranspositionTable* transTable;
 	TicTacEval* ticTacEval;
 	Mover* mover;
-	HashBoard* hashKey;
+	HashKey* hashKey;
 	Printer* printer;
 
 	int* randMoves;
@@ -53,13 +54,14 @@ class Engine{
 			movePool 	  = new int[82 * 81];
 			movePoolQ 	= new int[82 * 30];
 			transTable  = new TranspositionTable();
-			hashKey 		= new HashBoard();
+			hashKey 		= new HashKey();
+			delete(hashKey->board);
+			hashKey->board = board;
 			ticTacEval  = new TicTacEval();
 			evaluater   = new MMEval();
 			printer     = new Printer();
 			randMoves   = new int[81];
 			mover 		  = new Mover(board, mBoardFull, mBoard, randMoves);
-			hashKey->board = board;
 			gl_PrevMove = -1;
 			ponder  	  = 1;
 			movesMade   = 0;
@@ -92,7 +94,6 @@ class Engine{
 		}
 	
 		void Update(int *inBoard){
-			movesMade = 0;
 			for(int y = 0; y < 9; y++){
 				for(int x = 0; x < 9; x++){
 					int index = CTI(x,y);
@@ -113,7 +114,7 @@ class Engine{
 							hash = hash ^ hash_op[index];
 						}else if(newValue == O){
 							hash = hash ^ hash_pl[index]; 
-						}
+						} 
 					}
 				}
 			}	
@@ -122,9 +123,8 @@ class Engine{
 
 		std::pair<int, int> Move(int time){
 			if(movesMade == 0){
-				return std::make_pair(4,4);
+				return std::make_pair(4, 4);	
 			}
-
 			struct timeval tp;
 			gettimeofday(&tp, NULL);
 			long int ms = tp.tv_sec * 1000 + tp.tv_usec / 1000;
@@ -142,33 +142,34 @@ class Engine{
 			}	
 				
 			int depth;
-			for(depth = 4; depth < 25; depth++){
+			for(depth = 5; depth < 25; depth++){
 				itDepth = depth;
-				auto eval = Negamax(gl_PrevMove, depth, CONST_WON - depth, INFINITY + depth, 1);
+				auto eval = Negamax(gl_PrevMove, depth, CONST_WON - depth, CONST_WON + depth, 1);
+				// auto eval = MTDF(0, gl_PrevMove, depth);
 				
 				gettimeofday(&tp, NULL);
 				long int ms2 = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 				sec = ((float) (ms2-ms) / 1000.0);
 				fprintf(stderr, "%d - %f - %f - %d\n", depth, eval, sec, mNodes);
-				if(time < 7500 && sec > 0.250)
+				if(time < 7500 && sec > 0.240)
 					break;
 				if(time < 5000 && sec > 0.150)
 					break;
 				if(time < 2500 && sec > 0.100)
 					break;
-				if(sec > 0.450)
+				if(sec > 0.400)
 					break;
 			}
-	
+		
 			hashKey->prevMove = gl_PrevMove % 9;
-			hashKey->hash = hash;
+			hashKey->hash = hash ^ hash_move[gl_PrevMove % 9];
 			auto transPos = transTable->find(hashKey);
 			int chosenMove = -1;
 			float move = 0.0;
 
 			if(transPos != transTable->end()){
-				chosenMove = transPos->second;
-				move = transPos->first->eval;
+				chosenMove = transPos->second->bestMove;
+				move = transPos->second->eval;
 			}else{
 				fprintf(stderr, "Error, chosen move not found in transposition table, we are fucked\n");
 			}
@@ -191,12 +192,6 @@ class Engine{
 			}
 
 			fprintf(stderr, "PV: \n");
-			HashBoard* pvKey = new HashBoard();
-			pvKey->board = new char[81];
-			pvKey->hash = hash;
-			for(int i = 0; i < 81; i++){
-				pvKey->board[i] = board[i];				
-			}
 
 			// int tok = pl;
 
@@ -221,15 +216,33 @@ class Engine{
 			int y = (macro / 3) * 3 + micro / 3;
 		
 			fprintf( stderr, "%d, %d\n", x,y);
-			ponder = 0;
+			// ponder = 0;
+			transTable->cleanUp(movesMade + 1);
 			return std::make_pair(x, y);	
 		}
-
+		
+		float MTDF(float f, int prevMove, int depth){
+		      float g = 0.0;
+		      float upperBound = -CONST_WON + depth;
+		      float lowerBound = CONST_WON - depth;
+		      while (lowerBound < upperBound){
+		    		float beta = (g > lowerBound+1) ? g : lowerBound+1;
+		    		g = Negamax(prevMove, depth, beta-1, beta, 1);
+		  		 	if (g < beta){
+		          upperBound = g;
+		  		 	}
+		       	else{
+		          lowerBound = g;
+		       	}
+		      }
+		     return g;
+		}
+		
 		void Ponder(){
-			if(!ponder){
-				ponder = 1;
-				transTable->cleanUp(movesMade + 1); //Should be done on pondering.
-			}
+			// if(!ponder){
+			// 	ponder = 1;
+			// 	transTable->cleanUp(movesMade + 1); //Should be done on pondering.
+			// }
 		}
 
 		void SetPlayer(char pl){
@@ -243,17 +256,18 @@ class Engine{
 			int token = (turn == 1) ? pl : op;
 				
 			//Check transtable
+
 			hashKey->prevMove = prevMove % 9;
-			hashKey->hash = hash;
+			hashKey->hash = hash ^ hash_move[prevMove % 9];
 			auto transPos = transTable->find(hashKey);
 			
 			char prefMove = -1;
 			if(transPos != transTable->end()) {
-				prefMove = transPos->second;
+				prefMove = transPos->second->bestMove;
 				transHit++;
-				if(transPos->first->itDepth == itDepth + depth){
+				if(transPos->second->itDepth == itDepth + depth){
 					transHitFull++;
-					return transPos->first->eval;
+					return transPos->second->eval;
 				}
 			}
 
@@ -264,23 +278,23 @@ class Engine{
 			int* moves = &movePool[82 * (80 - (depth <= 0 ? 0 : depth))];
 			mover->getMoves(moves, prevMove, token, &qMoves, &qLow, prefMove);
 			if(v != ND && v != DR){
-				return CONST_WON;
+				return CONST_WON - depth;
 			}else if(depth <= 0){
-				if(qMoves > 0){
-					return qSearch(prevMove, turn, 0, alpha, beta);
-				}
+				// if(qMoves > 0){
+				// 	return qSearch(prevMove, turn, 0, alpha, beta);
+				// }
 				return evaluater->H(board, mBoardFull, pl, ticTacEval) * turn;
 			}
 
 			if(moves[0] == 999){
 				return 0.0;
 			}
-			
+
 			float extreme = -INFINITY;
 			int chosenMove = -1;
 
 			char isCut = 0;
-		
+			
 			for(int c = 0, i = -1;; ){
 				i = moves[c++];
 				if(i == 999){
@@ -290,10 +304,10 @@ class Engine{
 				auto hashChanges = ApplyMove(i, token);
 
 				float e;
-				// if(c < 6 && itDepth - depth  > 3){
+				// if(c < 4){
 					e = -Negamax(i, depth - 1, -beta, -alpha, -turn);
 				// }else{
-				//   e = -Negamax(i, depth - 2, -beta, -alpha, -turn);
+				//   e = -Negamax(i, depth - 2, alpha + 1, -alpha, -turn);
 				// 	if(e >= alpha){ //HER ER PROBLEMER
 				// 		LMR_Re++;
 				// 		e = -Negamax(i, depth - 1, -beta, -alpha, -turn);
@@ -319,7 +333,7 @@ class Engine{
 				if(transPos != transTable->end()){
 					TranspositionTable::UpdateTransPos(transPos, chosenMove, extreme, itDepth + depth, isCut);
 				}else{
-					transTable->insert(chosenMove, board, hash, extreme, prevMove % 9, itDepth + depth, movesMade + (itDepth - depth), isCut);
+					transTable->insert(chosenMove, hash ^ hash_move[prevMove%9], extreme, itDepth + depth, movesMade + (itDepth - depth), isCut, board, prevMove);
 				}
 			}
 			return extreme;
@@ -366,7 +380,7 @@ class Engine{
 			return extreme;
 		}
 
-		std::pair<uint64_t, std::size_t> ApplyMove(int move, int token){
+		std::pair<uint64_t, uint64_t> ApplyMove(int move, int token){
 			int macroIndex = move / 9;
 			board[move] = token;
 			
@@ -375,18 +389,18 @@ class Engine{
 			uint64_t newMBoardValue = ticTacEval->evalPure(boardHash[macroIndex]);
 			mBoard[macroIndex] = newMBoardValue & ticTacEval->BM_EVAL;
 			mBoardFull[macroIndex] = newMBoardValue;
-			std::size_t hashChange = (token == X) ? hash_pl[move] : hash_op[move];
+			uint64_t hashChange = ((token == X) ? hash_pl[move] : hash_op[move]);
 			hash = hash ^ hashChange;
 			return std::make_pair(oldMBoardValue, hashChange);	
 		}
 
-		void RemoveMove(int move, int token, std::pair<uint64_t, std::size_t> changes){
+		void RemoveMove(int move, int token, std::pair<uint64_t, uint64_t> changes){
 			int macroIndex = move / 9;
 			mBoardFull[macroIndex] = changes.first;
 			mBoard[macroIndex] = changes.first & ticTacEval->BM_EVAL;
 			boardHash[macroIndex] -= hash_tts[token][move % 9];
 			
-			hash = hash ^ ((std::size_t)changes.second);
+			hash = hash ^ (changes.second);
 			board[move] = 0;
 		}
 	

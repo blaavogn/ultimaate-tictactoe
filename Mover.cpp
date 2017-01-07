@@ -10,7 +10,7 @@ class Mover{
 	char *mBoard;
 	uint64_t *mBoardFull;
 	int *randMoves;
-	
+	int *moveHeur;	
 
 	public:
 		Mover(char *inBoard, uint64_t *inMBoardFull, char *inMBoard, int *inRandMoves){
@@ -18,6 +18,7 @@ class Mover{
 			mBoard = inMBoard;
 			mBoardFull = inMBoardFull;
 			randMoves = inRandMoves;
+			moveHeur = new int[81];
 		}
 
 		void getMoves(int* moves, int prevMove, int player, int *qMoves, int *qMovesLow, int prefMove){
@@ -38,9 +39,9 @@ class Mover{
 			}
 
 			int opCanWinMacro   = (player == X) ? TicTacEval::opcw : TicTacEval::plcw;
-			int playerWinMacro = (player == X) ? TicTacEval::plw : TicTacEval::opw;
-			int prefMoveIsNotQMove = 1;
-
+			int opMicroHeur     = (player == X) ? TicTacEval::opb : TicTacEval::plb;
+			// int playerWinMacro = (player == X) ? TicTacEval::plw : TicTacEval::opw;
+			
 			for(int i = minLim; i < maxLim; i++){	
 				if(mBoard[i / 9] != ND){
 					i += 8;
@@ -48,27 +49,28 @@ class Mover{
 				}
 				int mv = randMoves[i];
 				if(mv == prefMove){
-					prefMoveIsNotQMove = (((mBoardFull[mv / 9] >> (playerWinMacro + mv % 9)) & 1) == 1) ? 0 : 1;
 					continue;	
 				}
 
 				if(board[mv] == 0){
 					int iMod = mv % 9;
+					int iFlor = mv / 9;
 
-					if(((mBoardFull[mv / 9] >> (playerWinMacro + iMod)) & 1) == 1){
-						qCount++; //Qsearch move
-					
-						if(lCount > bCount){
-							int tmp = moves[bCount];
-							moves[bCount++] = mv;
-							moves[lCount++] = tmp;
-						}else{
-							bCount++;
-							moves[lCount++] = mv;
-						}
-					}else	if(((mBoardFull[iMod] >> opCanWinMacro) & TicTacEval::BM_EVAL) != 1 && mBoard[iMod] == ND){
+					if(((mBoardFull[iMod] >> opCanWinMacro) & TicTacEval::BM_EVAL) != 1 && mBoard[iMod] == ND){
 						//Normal move
+						moveHeur[lCount] = (mBoardFull[iFlor] >> (opMicroHeur + TicTacEval::shft * iMod)) & TicTacEval::BM_EVAL; 
 						moves[lCount++] = mv;
+						for(int j = lCount - 1; j > 0; j--){
+							if(moveHeur[j] > moveHeur[j - 1]){
+								int tmp1 = moveHeur[j];
+								int tmp2 = moves[j];
+								moveHeur[j] = moveHeur[j - 1];
+								moves[j] = moves[j - 1];
+								moveHeur[j - 1] = tmp1;
+								moves[j - 1] = tmp2;
+							}
+						}
+
 					}else{
 						//Bad move
 						moves[hCount++] = mv;
@@ -81,7 +83,7 @@ class Mover{
 				moves[lCount++] = i;
 			}
 
-			*qMovesLow = prefMoveIsNotQMove;
+			*qMovesLow = 0;
 			*qMoves = qCount;
 			moves[lCount] = 999;					
 		}

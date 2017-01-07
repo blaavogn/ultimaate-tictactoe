@@ -1,5 +1,5 @@
 bot :
-	g++-4.9 -std=c++11 -Wall -O2 -o bin/ch20 starter.cpp
+	g++-4.9 -std=c++11 -fmax-errors=3 -Wall -O2 -o bin/$(vers) starter.cpp
 
 human :
 	g++-4.9 -std=c++11 -Wall -O2 -o bin/hum Human.cpp
