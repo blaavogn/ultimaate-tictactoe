@@ -9,7 +9,7 @@ class MMEval{
 	const int O = 2;
 	const int DR = 3;
 
-	const int H_WON = 40;
+	const int H_WON = 50;
 
 	float H_MACRO[9] = {
 		1.2, 1.0, 1.2,
@@ -22,7 +22,6 @@ class MMEval{
 		2.5, 1.0, 2.5,
 		1.2, 2.5, 1.2
 	};
-
 
 	public:
 		MMEval(){

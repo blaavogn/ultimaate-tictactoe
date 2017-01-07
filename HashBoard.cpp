@@ -55,14 +55,14 @@ static const uint64_t hash_move[] {
 
 class HashBoard{
 	public: 
-		char itDepth;
+		char valDepth;
 		char movesMade;
 		char cut;
 		char bestMove;
 		float eval;
 	
 	HashBoard(){
-		itDepth = 0;
+		valDepth = 0;
 		movesMade = 0;
 		cut = 0;
 		bestMove = 0;
@@ -80,27 +80,25 @@ class HashKey{
 		uint64_t hash;
 	
 	HashKey(){
-		board = new char[81];
 	}
 
 	~HashKey(){
-		delete(board);
 	}  
 };
 
 struct HashKeyEqual {
 	bool operator()( HashKey* const &l, HashKey* const &r) const {
-		if(l->prevMove % 9 != r->prevMove % 9){
-			return false;
-		}
-	  for(int i = 0; i < 81; i++){
-	  	if(l->board[i] != r->board[i])
-	  		return false;
-	  }
-	  return true;
+		// if(l->prevMove % 9 != r->prevMove % 9){
+		// 	return false;
+		// }
+	 //  for(int i = 0; i < 81; i++){
+	 //  	if(l->board[i] != r->board[i])
+	 //  		return false;
+	 //  }
+
+	  return (l->hash == r->hash);
 	}
 };
-
 
 struct HashKeyHash
 {

@@ -32,7 +32,7 @@ class Engine{
 	int transHitFull = 0;
 	int transHit = 0;
 	int LMR_Re = 0;
-	int hashDepth = 9;
+	int hashDepth = 8;
 	int ponder = 0;
 
 	MMEval* evaluater;
@@ -55,7 +55,6 @@ class Engine{
 			movePoolQ 	= new int[82 * 30];
 			transTable  = new TranspositionTable();
 			hashKey 		= new HashKey();
-			delete(hashKey->board);
 			hashKey->board = board;
 			ticTacEval  = new TicTacEval();
 			evaluater   = new MMEval();
@@ -144,8 +143,7 @@ class Engine{
 			int depth;
 			for(depth = 5; depth < 25; depth++){
 				itDepth = depth;
-				auto eval = Negamax(gl_PrevMove, depth, CONST_WON - depth, CONST_WON + depth, 1);
-				// auto eval = MTDF(0, gl_PrevMove, depth);
+				auto eval = Negamax(gl_PrevMove, depth, CONST_WON - 100, -CONST_WON + 100, 1);
 				
 				gettimeofday(&tp, NULL);
 				long int ms2 = tp.tv_sec * 1000 + tp.tv_usec / 1000;
@@ -191,25 +189,6 @@ class Engine{
 				fprintf( stderr, "Best move: %d, %f\n", chosenMove, move);
 			}
 
-			fprintf(stderr, "PV: \n");
-
-			// int tok = pl;
-
-			// while(transPos != transTable->end()){
-			// 	int move = transPos->second;
-			// 	fprintf(stderr, "(%d,%d),", move / 9, move % 9);
-			// 	pvKey->board[(int)move] = tok;
-			// 	std::size_t hashChange = ((tok == X) ? hash_pl[move] : hash_op[move]);
-			// 	pvKey->hash = pvKey->hash ^ hashChange;
-			// 	pvKey->prevMove = move % 9;
-			// 	tok = (tok == pl) ? op : pl;
-			// 	transPos = transTable->find(pvKey);
-			// }
-			// fprintf(stderr, "\n");
-			// printer->Print(pvKey->board);
-			// // delete(pvKey);
-			// fprintf(stderr, "\n");
-
 			int macro = chosenMove / 9;
 			int micro = chosenMove % 9;
 			int x = (macro % 3) * 3 + micro % 3;
@@ -219,23 +198,6 @@ class Engine{
 			// ponder = 0;
 			transTable->cleanUp(movesMade + 1);
 			return std::make_pair(x, y);	
-		}
-		
-		float MTDF(float f, int prevMove, int depth){
-		      float g = 0.0;
-		      float upperBound = -CONST_WON + depth;
-		      float lowerBound = CONST_WON - depth;
-		      while (lowerBound < upperBound){
-		    		float beta = (g > lowerBound+1) ? g : lowerBound+1;
-		    		g = Negamax(prevMove, depth, beta-1, beta, 1);
-		  		 	if (g < beta){
-		          upperBound = g;
-		  		 	}
-		       	else{
-		          lowerBound = g;
-		       	}
-		      }
-		     return g;
 		}
 		
 		void Ponder(){
@@ -254,18 +216,18 @@ class Engine{
 		float Negamax(int prevMove, int depth, float alpha, float beta, int turn){
 			mNodes++;
 			int token = (turn == 1) ? pl : op;
-				
+			
 			//Check transtable
-
 			hashKey->prevMove = prevMove % 9;
 			hashKey->hash = hash ^ hash_move[prevMove % 9];
 			auto transPos = transTable->find(hashKey);
-			
+
 			char prefMove = -1;
-			if(transPos != transTable->end()) {
+
+			if(transPos != transTable->end()) {		
 				prefMove = transPos->second->bestMove;
 				transHit++;
-				if(transPos->second->itDepth == itDepth + depth){
+				if(transPos->second->valDepth == itDepth + depth && transPos->second->cut == 0){
 					transHitFull++;
 					return transPos->second->eval;
 				}
@@ -316,14 +278,14 @@ class Engine{
 
 				RemoveMove(i, token, hashChanges);
 
-				if(e >= extreme){
+				if(e > extreme){
 					extreme = e;
 					chosenMove = i;
 				}
 
 				alpha = std::max(e, alpha);
 
-				if(alpha > beta){
+				if(alpha >= beta){
 					isCut = 1;
 					break;
 				}
@@ -333,7 +295,7 @@ class Engine{
 				if(transPos != transTable->end()){
 					TranspositionTable::UpdateTransPos(transPos, chosenMove, extreme, itDepth + depth, isCut);
 				}else{
-					transTable->insert(chosenMove, hash ^ hash_move[prevMove%9], extreme, itDepth + depth, movesMade + (itDepth - depth), isCut, board, prevMove);
+					transTable->insert(chosenMove, hash ^ hash_move[prevMove%9], extreme, itDepth + depth, movesMade, isCut, board, prevMove);
 				}
 			}
 			return extreme;
@@ -400,7 +362,7 @@ class Engine{
 			mBoard[macroIndex] = changes.first & ticTacEval->BM_EVAL;
 			boardHash[macroIndex] -= hash_tts[token][move % 9];
 			
-			hash = hash ^ (changes.second);
+			hash = hash ^ changes.second;
 			board[move] = 0;
 		}
 	
