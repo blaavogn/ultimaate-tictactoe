@@ -155,7 +155,7 @@ class Engine{
 					break;
 				if(time < 2500 && sec > 0.100)
 					break;
-				if(sec > 0.010)
+				if(sec > 0.410)
 					break;
 			}
 		
