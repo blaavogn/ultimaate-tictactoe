@@ -13,6 +13,8 @@ class MoveTest{
 	char *board;
 	uint64_t *mBoardFull;
 	char *mBoard;
+	char *plCanWinMap;
+	char *opCanWinMap;
 	int *plMoves;
 	int *opMoves;
 	
@@ -22,9 +24,11 @@ class MoveTest{
 			ticTacEval = new TicTacEval();
 			moves = new int[81];
 			board = new char[81];
+			mBoard = new char[81];
 			plMoves = new int[82 * 2];
 			opMoves = new int[82 * 2];
-			
+			plCanWinMap = new char[9];
+			opCanWinMap = new char[9];
 			mBoardFull = new uint64_t[9];
 
 			for(int i = 0; i < 81; i++){
@@ -36,7 +40,8 @@ class MoveTest{
 				mBoardFull[i] = 0;
 				mBoard[i] = 0;
 			}
-			mover = new Mover(board, mBoardFull, mBoard, moves);
+
+			mover = new Mover(board, mBoardFull, mBoard, plCanWinMap, opCanWinMap, moves);
 
 			for(auto it = inBoards->begin(); it != inBoards->end(); ++it){
 				for(int i = 0; i < 81; i++){
@@ -46,6 +51,11 @@ class MoveTest{
 				for(int i = 0; i < 9; i++){
 					mBoardFull[i] = ticTacEval->eval(board + i * 9);
 					mBoard[i] = mBoardFull[i] & TicTacEval::BM_EVAL;
+				}
+				uint64_t fullEval = ticTacEval->eval(mBoard);
+				for(int i = 0; i < 9; i++){
+					plCanWinMap[i] = (((fullEval >> (TicTacEval::plb + i * 2)) & TicTacEval::BM_EVAL) == 3) ? 1 : 0;
+					opCanWinMap[i] = (((fullEval >> (TicTacEval::opb + i * 2)) & TicTacEval::BM_EVAL) == 3) ? 1 : 0;
 				}
 
 				fprintf(stderr, "\n");
@@ -64,17 +74,16 @@ class MoveTest{
 		void test(int lastMove, int prefMove){
 			fprintf(stderr, "Last move: %d | Prefered: %d\n", lastMove, prefMove);
 			int qMovePl = 0, qMoveOp = 0;
-			int qMovePlLow = 0, qMoveOpLow = 0;
-			mover->getMoves(plMoves, lastMove, 1, &qMovePl, &qMovePlLow, prefMove);
+			mover->getMoves(plMoves, lastMove, 1, &qMovePl, prefMove);
 			fprintf(stderr, "Pl\n");
-			printMoves(plMoves, qMovePl, qMovePlLow);
-			mover->getMoves(opMoves, lastMove, 2, &qMoveOp, &qMoveOpLow, prefMove);
+			printMoves(plMoves, qMovePl);
+			mover->getMoves(opMoves, lastMove, 2, &qMoveOp, prefMove);
 			fprintf(stderr, "Op\n");
-			printMoves(opMoves, qMoveOp, qMoveOpLow);
+			printMoves(opMoves, qMoveOp);
 		}
 
-		void printMoves(int* moves, int qmoves, int qLow){
-			fprintf(stderr, "Q: %d, low: %d\n", qmoves, qLow);
+		void printMoves(int* moves, int qmoves){
+			fprintf(stderr, "Q: %d\n", qmoves);
 			for(int i = 0; i < 81; i++){
 				if(moves[i] == 999){
 					break;
@@ -94,8 +103,8 @@ int main ()
 	while (getline(std::cin, input_line)) {
   	lines->push_back(input_line);
   };
-
 	for(auto it = lines->begin(); it != lines->end(); ++it ){
+  	fprintf(stderr, "Starting test\n");
 		char *tmpBoardPl = new char[81];
 		char *tmpBoardOp = new char[81];
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <stdint.h>
 
 static const uint64_t hash_pl[]  = {
 0x7822a026bf7c8929, 0x8c0d988b1db555e2, 0x60fbe97a41e1f290, 0x61a38a1500879cea, 0x839381170b0dfbbc, 0x678388f7282204e0, 0xcc7fe8bb0c0682fc, 0x17cfbdc189f913e6, 
@@ -57,14 +58,14 @@ class HashBoard{
 	public: 
 		char valDepth;
 		char movesMade;
-		char cut;
+		char shallow;
 		char bestMove;
 		float eval;
 	
 	HashBoard(){
 		valDepth = 0;
 		movesMade = 0;
-		cut = 0;
+		shallow = 0;
 		bestMove = 0;
 		eval = 0.0;
 	}
@@ -88,14 +89,6 @@ class HashKey{
 
 struct HashKeyEqual {
 	bool operator()( HashKey* const &l, HashKey* const &r) const {
-		// if(l->prevMove % 9 != r->prevMove % 9){
-		// 	return false;
-		// }
-	 //  for(int i = 0; i < 81; i++){
-	 //  	if(l->board[i] != r->board[i])
-	 //  		return false;
-	 //  }
-
 	  return (l->hash == r->hash);
 	}
 };

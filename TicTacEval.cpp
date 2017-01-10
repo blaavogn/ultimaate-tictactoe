@@ -293,6 +293,9 @@ class TicTacEval{
 			}
 
 			for(int j = 0; j < 3; j++){
+				if(lmBoard[base + j * step] != 0){
+					continue;
+				}
 				tmp[base + j * step] = std::max(tmp[base + j * step], c);		
 			}
 		}

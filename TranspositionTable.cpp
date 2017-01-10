@@ -17,11 +17,11 @@ class TranspositionTable{
 			// delete(map);
 		}
 
-		void insert(int chosenMove, uint64_t hash, float val, int valDepth, int movesMade, char cut, char *board, int prevMove){
+		void insert(int chosenMove, uint64_t hash, float val, int valDepth, int movesMade, char shallow, char *board, int prevMove){
 			HashBoard *b = new HashBoard();
 			b->eval = val;
 			b->valDepth = valDepth;
-			b->cut = cut;
+			b->shallow = shallow;
 			b->movesMade = movesMade;
 			b->bestMove = chosenMove;
 			HashKey *k = new HashKey();
@@ -30,11 +30,11 @@ class TranspositionTable{
 			map->insert(std::make_pair(k, b));
 		}
 
-		static void UpdateTransPos(TransMap::iterator pos, int bestMove, float val, int valDepth, char cut){
+		static void UpdateTransPos(TransMap::iterator pos, int bestMove, float val, int valDepth, char shallow){
 			pos->second->bestMove = bestMove;
 			pos->second->valDepth = valDepth;
 			pos->second->eval = val;
-			pos->second->cut = cut;
+			pos->second->shallow = shallow;
 		}
 
 		TransMap::iterator find(HashKey* key){

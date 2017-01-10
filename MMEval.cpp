@@ -28,9 +28,9 @@ class MMEval{
 			float h = 0;
 
 			for(int i = 0; i < 9; i++){
-				int l_won = (mBoardFull[i] & TicTacEval::BM_EVAL);
+				int l_won = mBoardFull[i] & TicTacEval::BM_EVAL;
 				won[i] = l_won;
-				h += l_won * 1000;				
+				h += toH(l_won) * 1000;				
 				plH[i] = 0;
 				opH[i] = 0;
 				if(l_won == 1)
@@ -58,7 +58,7 @@ class MMEval{
 				plH[6] * plH[7] * plH[8] +
 				plH[0] * plH[3] * plH[6] +
 				plH[1] * plH[4] * plH[7] +
-				plH[2] * plH[5] * plH[9] +
+				plH[2] * plH[5] * plH[8] +
 				plH[0] * plH[4] * plH[8] +
 				plH[2] * plH[4] * plH[6] -
 				(
@@ -67,7 +67,7 @@ class MMEval{
 					opH[6] * opH[7] * opH[8] +
 					opH[0] * opH[3] * opH[6] +
 					opH[1] * opH[4] * opH[7] +
-					opH[2] * opH[5] * opH[9] +
+					opH[2] * opH[5] * opH[8] +
 					opH[0] * opH[4] * opH[8] +
 					opH[2] * opH[4] * opH[6] 
 				)
