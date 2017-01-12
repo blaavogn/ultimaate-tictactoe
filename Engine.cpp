@@ -23,12 +23,18 @@ class Engine{
 	char *plCanWinMap;
 	char *opCanWinMap;
 
+	char plCanWin;
+	char opCanWin;
+
+	char *plNoneForcingMoves;
+	char *opNoneForcingMoves;
+
 	int *movePool;
 	int *movePoolQ;
 	std::size_t* boardHash; 
 	int gl_PrevMove;
 	char pl, op;
-	int lMove, mNodes;
+	int lMove, mNodes, qNodes;
 	int movesMade;
 	uint64_t hash = 0;
 	int itDepth = 0;
@@ -56,8 +62,14 @@ class Engine{
 			boardHash   = new std::size_t[9];
 			movePool 	  = new int[82 * 81];
 			movePoolQ 	= new int[82 * 30];
+			
 			plCanWinMap = new char[9];
 			opCanWinMap = new char[9];
+			plCanWin    = 0;
+			opCanWin    = 0;
+			plNoneForcingMoves = new char[9];
+			opNoneForcingMoves = new char[9];
+
 			transTable  = new TranspositionTable();
 			hashKey 		= new HashKey();
 			hashKey->board = board;
@@ -78,6 +90,8 @@ class Engine{
 				boardHash[i] = 0;
 				plCanWinMap[i] = 0;
 				opCanWinMap[i] = 0;
+				plNoneForcingMoves[i] = 9;
+				opNoneForcingMoves[i] = 9;
 			}
 
 			for(int i = 0; i < 81; i++){
@@ -109,9 +123,13 @@ class Engine{
 					
 					if(oldValue != newValue){
 						movesMade++;
-						board[index] = newValue;
-						boardHash[index / 9] += hash_tts[newValue][index % 9];
+						int macroMove = index % 9;
+						int macroIndex = index / 9;
 						
+						board[index] = newValue;
+						
+						boardHash[index / 9] += hash_tts[newValue][macroMove];
+
 						if(pV != pl){
 							gl_PrevMove = index;
 						}
@@ -139,6 +157,7 @@ class Engine{
 			transHitFull = 0;
 			transHit = 0;
 			mNodes = 0;
+			qNodes = 0;
 			LMR_Re = 0;
 			LMR_NONE = 0;
 			
@@ -149,7 +168,7 @@ class Engine{
 			}	
 				
 			int depth;
-			for(depth = 4; depth < 24; depth++){
+			for(depth = 4; depth < 25; depth++){
 				itDepth = depth;
 				auto eval = Negamax(gl_PrevMove, depth, CONST_WON - 100, -CONST_WON + 100, 1, 0);
 				
@@ -157,13 +176,13 @@ class Engine{
 				long int ms2 = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 				sec = ((float) (ms2-ms) / 1000.0);
 				fprintf(stderr, "%d - %f - %f - %d\n", depth, eval, sec, mNodes);
-				if(time < 7500 && sec > 0.260)
+				if(time < 7500 && sec > 0.320)
 					break;
 				if(time < 5000 && sec > 0.150)
 					break;
 				if(time < 2500 && sec > 0.100)
 					break;
-				if(sec > 0.320)
+				if(sec > 0.400)
 					break;
 			}
 		
@@ -189,7 +208,7 @@ class Engine{
 
 			fprintf( stderr, "%d: Depth %d: %2.3f mN/sec - %2.3f sec\n", movesMade, depth, ((float) mNodes / 1000000.0) / sec, sec);
 			fprintf( stderr, "TransHit: %d Full: %d, transsize: %ld \n", transHit, transHitFull, transTable->size());
-			fprintf( stderr, "Nodes: %d LMR_Re: %d - %d\n", mNodes, LMR_Re, LMR_NONE);
+			fprintf( stderr, "Nodes: %d qNodes: %d LMR_Re: %d - %d\n", mNodes, qNodes, LMR_Re, LMR_NONE);
 			
 			if(move < CONST_WON || move > -CONST_WON){
 				fprintf( stderr, "Best move: %d, %f # ?? \n", chosenMove, move);
@@ -247,9 +266,7 @@ class Engine{
 			
 			if(depth <= 0){
 				if(qMoves == 1){
-					return qSearch(prevMove, turn, 0, alpha, beta);
-				}else if(qMoves == 2){
-					return std::max(qSearch(prevMove, turn, 0, alpha, beta), evaluater->H(board, mBoardFull, pl, ticTacEval) * turn);
+					return qSearch(prevMove, turn, 0, alpha, beta, -1);
 				}
 				return evaluater->H(board, mBoardFull, pl, ticTacEval) * turn;
 			}
@@ -310,16 +327,17 @@ class Engine{
 			return extreme;
 		} 
 
-		float qSearch(int prevMove, int turn, int depth, float alpha, float beta){
+		float qSearch(int prevMove, int turn, int depth, float alpha, float beta, char allowFinish){
 			mNodes++;
+			qNodes++;
 			int token = (turn == 1) ? pl : op;	
 
 			int qMoves = 0;			
 			int* moves = movePoolQ + (28 - depth) * 81;
 			
-			mover->getMoves(moves, prevMove, token, &qMoves,-1);
+			mover->getMoves(moves, prevMove, token, &qMoves, -1);
 
-			if(qMoves != 1 || qMoves != 2){
+			if(qMoves != 1 && allowFinish){
 				return evaluater->H(board, mBoardFull, pl, ticTacEval) * turn;
 			}
 
@@ -338,7 +356,7 @@ class Engine{
 				if(term != 3 && term != 0){
 					e = -CONST_WON + depth;
 				}else{
-					e = -qSearch(i, -turn, depth + 1, -beta, -alpha);
+					e = -qSearch(i, -turn, depth + 1, -beta, -alpha, -allowFinish);
 				}
 
 				RemoveMove(i, token, hashChanges);
