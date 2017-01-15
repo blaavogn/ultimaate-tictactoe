@@ -11,8 +11,9 @@ class Mover{
 	uint64_t *mBoardFull;
 	char *plCanWinMap;
 	char *opCanWinMap;
+
 	int *randMoves;
-	int *moveHeur;	
+	int *moveHeur;
 
 	char* wildcardMoves;
 	char* loosingMoves;
@@ -31,11 +32,10 @@ class Mover{
 			loosingMoves = new char[81];
 		}
 
-		void getMoves(int* moves, int prevMove, int player, int *qMoves, int prefMove){
+		void getMoves(int* moves, int prevMove, int player, int *qMoves, int prefMove, int *wcMoves, int turn){
 			int macroIndex = prevMove % 9;
 			int minLim = 0;
 			int maxLim = 81;
-
 
 			if(prevMove > -1 && mBoard[macroIndex] == ND){ //Strict macro placement
 				minLim = macroIndex * 9;
@@ -53,7 +53,6 @@ class Mover{
 			for(int i = 0; i < 9; i++){
 				if(opwinMap[i]){
 					opCanWinWithWild = 1;
-					break;
 				}
 			}
 
@@ -89,12 +88,17 @@ class Mover{
 					}
 				}
 
-				moves[normalCount++] = mv;
+				moveHeur[normalCount] = ((mBoardFull[i] >> TicTacEval::plb * i % 9) + (mBoardFull[i] >> TicTacEval::opb * i % 9)) * turn;
+				moves[normalCount] = mv;
+				
+				normalCount++;
 			}
 
+			*wcMoves = normalCount;
+			
 			while(wildcardCount>0)
 				moves[normalCount++] = wildcardMoves[--wildcardCount];
-			
+
 			*qMoves = normalCount;
 
 			while(loosingCount>0)

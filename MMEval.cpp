@@ -12,9 +12,9 @@ class MMEval{
 	const int DR = 3;
 	
 	float H_MACRO[9] = {
-		1.2, 1.0, 1.2,
+		1.3, 1.0, 1.3,
 		1.0, 3.0, 1.0,
-		1.2, 1.0, 1.2
+		1.3, 1.0, 1.3
 	};
 
 	public:
@@ -30,7 +30,7 @@ class MMEval{
 			for(int i = 0; i < 9; i++){
 				int l_won = mBoardFull[i] & TicTacEval::BM_EVAL;
 				won[i] = l_won;
-				h += toH(l_won) * 1000;				
+				// h += toH(l_won) * 1000;				
 				plH[i] = 0;
 				opH[i] = 0;
 				if(l_won == 1)
@@ -47,8 +47,8 @@ class MMEval{
 					continue;
 				}	
 
-				plH[i] = MakroEval(mBoardFull, macroEvalPl, TicTacEval::plb, TicTacEval::plw, TicTacEval::opcw, i); 
-				opH[i] = MakroEval(mBoardFull, macroEvalOp, TicTacEval::opb, TicTacEval::opw, TicTacEval::plcw, i); 
+				plH[i] = MakroEval(mBoardFull, macroEvalPl, TicTacEval::plb, TicTacEval::plw, TicTacEval::opcw, TicTacEval::plm, i); 
+				opH[i] = MakroEval(mBoardFull, macroEvalOp, TicTacEval::opb, TicTacEval::opw, TicTacEval::plcw, TicTacEval::opm, i); 
 
 				h += (plH[i] * plH[i] - opH[i] * opH[i]) * 2000 * H_MACRO[i];
 			}
@@ -74,24 +74,24 @@ class MMEval{
 			);
 		}
 
-		int MakroEval(uint64_t *mBoardFull, uint64_t macroEval, int baseP, int baseW, int baseOCw, int i){
+		float MakroEval(uint64_t *mBoardFull, uint64_t macroEval, int baseP, int baseW, int baseOCw, int baseMost, int i){
 			int eval = ((macroEval >> (baseP + i * TicTacEval::shft)) & TicTacEval::BM_EVAL);
 			
 			if(eval == 3){
 				for(int j = 0; j < 9; j++){
-					int c = 0;
 					if(((mBoardFull[i] >> (baseW + j)) & 1) && won[j] == ND){
-						if(!((mBoardFull[j] >> (baseOCw) & 1) && j != 4) || c == 1){
+						if(!((mBoardFull[j] >> (baseOCw) & 1) && j != 4)){
 							eval++;
 							break;
-						} else{
-							// c++;
 						}
 					}
 				}
 			}
 
 			int mEval = ((mBoardFull[i] >> (baseP + 18)) & TicTacEval::BM_EVAL);
+			if(mEval == 3 && ((mBoardFull[i] >> baseMost) & 1)){
+				mEval+=1;
+			}
 			return eval * mEval;
 		}
 

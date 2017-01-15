@@ -20,6 +20,8 @@ class Engine{
 	char *mBoard;
 	uint64_t *mBoardFull;
 
+	int *pearsonValues;
+
 	char *plCanWinMap;
 	char *opCanWinMap;
 
@@ -62,7 +64,8 @@ class Engine{
 			boardHash   = new std::size_t[9];
 			movePool 	  = new int[82 * 81];
 			movePoolQ 	= new int[82 * 30];
-			
+			pearsonValues = new int[21];
+
 			plCanWinMap = new char[9];
 			opCanWinMap = new char[9];
 			plCanWin    = 0;
@@ -83,6 +86,10 @@ class Engine{
 			movesMade   = 0;
 			
 			srand( time( NULL ) );
+
+			for(int i = 0; i < 21; i++){
+				pearsonValues[i] = 0;
+			}
 
 			for(int i = 0; i < 9; i++){
 				mBoard[i] = 0;
@@ -124,8 +131,6 @@ class Engine{
 					if(oldValue != newValue){
 						movesMade++;
 						int macroMove = index % 9;
-						int macroIndex = index / 9;
-						
 						board[index] = newValue;
 						
 						boardHash[index / 9] += hash_tts[newValue][macroMove];
@@ -142,6 +147,7 @@ class Engine{
 					}
 				}
 			}	
+			fprintf(stderr, "%d\n", gl_PrevMove);
 			printer->Print(board);
 		}
 
@@ -176,13 +182,14 @@ class Engine{
 				long int ms2 = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 				sec = ((float) (ms2-ms) / 1000.0);
 				fprintf(stderr, "%d - %f - %f - %d\n", depth, eval, sec, mNodes);
-				if(time < 7500 && sec > 0.320)
+				if(time < 6500 && sec > 0.250)
 					break;
 				if(time < 5000 && sec > 0.150)
 					break;
 				if(time < 2500 && sec > 0.100)
 					break;
-				if(sec > 0.400)
+				// if(sec > 0.250 && movesMade < 14 || sec > 0.450)
+				if(sec > 0.350)
 					break;
 			}
 		
@@ -200,8 +207,8 @@ class Engine{
 			}
 
 			if(chosenMove == -1){
-				int k = 0;
-				mover->getMoves(movePool, gl_PrevMove, pl, &k, -1);
+				int k = 0, kk = 0;
+				mover->getMoves(movePool, gl_PrevMove, pl, &k, -1, &kk, 1);
 				chosenMove = movePool[0];
 				fprintf(stderr, "Choosing loose %d\n", chosenMove);
 			}
@@ -216,22 +223,21 @@ class Engine{
 				fprintf( stderr, "Best move: %d, %f\n", chosenMove, move);
 			}
 
+			// for(int i = 0; i < 21; i++){
+			// 	fprintf(stderr, "%d: %d\n", i, pearsonValues[i]);
+			// }
+
 			int macro = chosenMove / 9;
 			int micro = chosenMove % 9;
 			int x = (macro % 3) * 3 + micro % 3;
 			int y = (macro / 3) * 3 + micro / 3;
 		
 			fprintf( stderr, "%d, %d\n", x,y);
-			// ponder = 0;
 			transTable->cleanUp(movesMade + 1);
 			return std::make_pair(x, y);	
 		}
 		
 		void Ponder(){
-			// if(!ponder){
-			// 	ponder = 1;
-			// 	transTable->cleanUp(movesMade + 1); //Should be done on pondering.
-			// }
 		}
 
 		void SetPlayer(char pl){
@@ -260,9 +266,9 @@ class Engine{
 				}
 			}
 			
-			int qMoves = 0;
+			int qMoves = 0, wcMoves = 0;
 			int* moves = &movePool[82 * (80 - (depth <= 0 ? 0 : depth))];
-			mover->getMoves(moves, prevMove, token, &qMoves, prefMove);
+			mover->getMoves(moves, prevMove, token, &qMoves, prefMove, &wcMoves, turn);
 			
 			if(depth <= 0){
 				if(qMoves == 1){
@@ -275,25 +281,40 @@ class Engine{
 				return 0.0;
 			}
 
+			// std::vector<std::pair<float,int>> *pearson;
+			// int pear = 0;
+			// if(itDepth - depth < 3){
+			// 	pear = 1;
+			// 	pearson = new std::vector<std::pair<float,int>>();
+			// }
+
 			float extreme = -INFINITY;
 			int chosenMove = -1;
+			int c = 0;
 
-			for(int c = 0, i = -1;; ){
+			for(int i = -1;; ){
 				i = moves[c++];
 				if(i == 999){
 					break;
 				}
 
 				auto hashChanges = ApplyMove(i, token);
-				auto term = std::get<0>(hashChanges) & TicTacEval::BM_EVAL;
+				auto term = std::get<0>(hashChanges);
 
 				float e;
 				
-				if(term != 3 && term != 0){
+				auto wonLost = term & TicTacEval::BM_EVAL;
+				auto term2 = std::get<0>(hashChanges);
+				if(wonLost != 0 && wonLost != 3){
 					e = -CONST_WON + depth;
+				}else if(wonLost == 3 || ((((term >> (TicTacEval::opb + 18)) & TicTacEval::BM_EVAL) == 0) && 
+																	(((term >> (TicTacEval::plb + 18)) & TicTacEval::BM_EVAL) == 0))
+															|| ((((term2 >> (TicTacEval::opb + 18)) & TicTacEval::BM_EVAL) == 0) && 
+																	(((term2 >> (TicTacEval::plb + 18)) & TicTacEval::BM_EVAL) == 0))){
+					e = 0.0;
 				}else{
 					if (c != 1){
-	          e = -Negamax(i, depth-1, -alpha-1, -alpha, -turn, 1);
+						e = -Negamax(i, depth-1, -alpha-1, -alpha, -turn, 1);
 	          if (alpha < e && e < beta){
 	         		e = -Negamax(i, depth-1, -beta, -e, -turn, shallow);
 	          }
@@ -302,7 +323,7 @@ class Engine{
 	          e = -Negamax(i, depth-1, -beta, -alpha, -turn, shallow);	
 	        }
 				}
-				
+			
 				RemoveMove(i, token, hashChanges);
 
 				if(e > extreme){
@@ -332,10 +353,10 @@ class Engine{
 			qNodes++;
 			int token = (turn == 1) ? pl : op;	
 
-			int qMoves = 0;			
+			int qMoves = 0, wcMoves = 0;
 			int* moves = movePoolQ + (28 - depth) * 81;
-			
-			mover->getMoves(moves, prevMove, token, &qMoves, -1);
+
+			mover->getMoves(moves, prevMove, token, &qMoves, -1, &wcMoves, turn);
 
 			if(qMoves != 1 && allowFinish){
 				return evaluater->H(board, mBoardFull, pl, ticTacEval) * turn;
@@ -349,13 +370,20 @@ class Engine{
 				}
 
 				auto hashChanges = ApplyMove(i, token);
-				auto term = std::get<0>(hashChanges) & TicTacEval::BM_EVAL;
+				auto term = std::get<0>(hashChanges);
 
 				float	e;
 
-				if(term != 3 && term != 0){
+				auto wonLost = term & TicTacEval::BM_EVAL;
+				auto term2 = std::get<5>(hashChanges);
+				if(wonLost != 0 && wonLost != 3){
 					e = -CONST_WON + depth;
-				}else{
+				}else if(wonLost == 3 || ((((term >> (TicTacEval::opb + 18)) & TicTacEval::BM_EVAL) == 0) && 
+																	(((term >> (TicTacEval::plb + 18)) & TicTacEval::BM_EVAL) == 0))
+															|| ((((term2 >> (TicTacEval::opb + 18)) & TicTacEval::BM_EVAL) == 0) && 
+																	(((term2 >> (TicTacEval::plb + 18)) & TicTacEval::BM_EVAL) == 0))){
+					e = 0.0;
+				}{
 					e = -qSearch(i, -turn, depth + 1, -beta, -alpha, -allowFinish);
 				}
 
@@ -371,7 +399,7 @@ class Engine{
 			return extreme;
 		}
 
-		std::tuple<uint64_t, uint64_t, uint64_t, char, char> ApplyMove(int move, int token){
+		std::tuple<uint64_t, uint64_t, uint64_t, char, char, uint64_t> ApplyMove(int move, int token){
 			int macroIndex = move / 9;
 			board[move] = token;
 
@@ -386,15 +414,17 @@ class Engine{
 			
 			//Terminal position
 			uint64_t term = ticTacEval->eval(mBoard);
+			uint64_t term2 = ticTacEval->evalPl(mBoard,1);
+			uint64_t term3 = ticTacEval->evalPl(mBoard,2);
 			char oldPlWin = plCanWinMap[macroIndex];
 			char oldOpWin = opCanWinMap[macroIndex];
 			plCanWinMap[macroIndex] = ((term >> (TicTacEval::plb + macroIndex * 2)) & TicTacEval::BM_EVAL) == 3;
 			opCanWinMap[macroIndex] = ((term >> (TicTacEval::opb + macroIndex * 2)) & TicTacEval::BM_EVAL) == 3;
 
-			return std::make_tuple(term, oldMBoardValue, hashChange, oldPlWin, oldOpWin);	
+			return std::make_tuple(term, oldMBoardValue, hashChange, oldPlWin, oldOpWin, term2 | term3);	
 		}
 
-		void RemoveMove(int move, int token, std::tuple<uint64_t, uint64_t, uint64_t, char, char> changes){
+		void RemoveMove(int move, int token, std::tuple<uint64_t, uint64_t, uint64_t, char, char, uint64_t> changes){
 			int macroIndex = move / 9;
 			mBoardFull[macroIndex] = std::get<1>(changes);
 			mBoard[macroIndex] = std::get<1>(changes) & ticTacEval->BM_EVAL;

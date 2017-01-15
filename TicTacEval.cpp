@@ -31,6 +31,8 @@ class TicTacEval{
 	int *opTmp;
 	int *plWin;
 	int *opWin;
+	uint64_t plMost, opMost;
+	uint64_t mDrawn;
 
 	public:
 		static const uint64_t BM_FULL = 0xffffffffffffffff;
@@ -43,8 +45,9 @@ class TicTacEval{
 		static const int opw = 51;
 		static const int plcw = 60;
 		static const int opcw = 61;
+		static const int plm = 62;
+		static const int opm = 63;
 		static const int shft = 2;
-
 
 		TicTacEval(){
 			map = new uint64_t[19683];
@@ -116,12 +119,13 @@ class TicTacEval{
 					plCan = std::max((uint64_t)plWin[i], plCan);
 					opCan = std::max((uint64_t)opWin[i], opCan);
 				} 
-
 				ent |= plBest << (9 * shft + plb);
 				ent |= opBest << (9 * shft + opb);
 				ent |= plCan << plcw;
 				ent |= opCan << opcw;
-				
+				ent |= plMost << plm;
+				ent |= opMost << opm;
+			
 				std::size_t hash = 0;
 				hash += hash_tts[(int)board[0]][0];
 				hash += hash_tts[(int)board[1]][1];
@@ -183,7 +187,8 @@ class TicTacEval{
 
 		char ValidateSmall(char *b){
 			char l, v;
-
+			plMost = 0;
+			opMost = 0;
 			for(int i = 0; i < 9; i++){
 				plTmp[i] = 0;
 				opTmp[i] = 0;
@@ -255,6 +260,18 @@ class TicTacEval{
 			}
 
 			if(drawn == 0){
+				int plCnt = 0, opCnt = 0;
+				for(int i = 0; i < 9; i++){
+					if(b[i] == 1)
+						plCnt++;
+					if(b[i] == 1)
+						opCnt++;
+				}
+				if(plCnt > opCnt + 1)
+					plMost = 1;
+				if(plCnt + 1 < opCnt)
+					opMost = 1;
+				
 				for(int i = 0; i < 3; i++){
 					hDirection(b, plTmp, plWin, X, i * 3, 1); //Horizontal
 					hDirection(b, plTmp, plWin, X, i, 3); //Vertical
